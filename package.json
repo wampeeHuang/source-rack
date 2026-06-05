@@ -1,0 +1,19 @@
+{
+  "name": "source-rack",
+  "version": "1.0.0",
+  "description": "信息源策展系统 — MD 文件即唯一真相源，只读投影 + 自检闸门",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node check.js",
+    "standardize": "node standardize.js --dry-run",
+    "standardize:apply": "node standardize.js",
+    "dedup": "node dedup.js --dry-run",
+    "dedup:apply": "node dedup.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0"
+  },
+  "keywords": ["curation", "source-management", "single-source-of-truth", "markdown"],
+  "license": "MIT"
+}
