@@ -7,13 +7,17 @@ Web 面板：http://localhost:3098
 
 ### 档位定义
 
-三层信任分级——所有搜索场景的通用宪法：
+**算法驱动，动态升降。** 速率决定档位——S 是状态，不是勋章。
 
-| 档位 | 含义 | 标准 |
-|------|------|------|
-| **S** | 固定信源（权威源） | 无论如何都信任。跟使用频率无关——哪怕一个月没打开，依然相信。一手/权威/不可替代。例：Martin Fowler、ArXiv(有社区验证)、顶会论文、官方团队博客 |
-| **A** | 补充信源 | 不够权威但可补充查阅。有可替代方案，交叉验证使用。例：知名科技媒体、Reddit 高赞讨论 |
-| **block** | 黑名单 | 绝对不用。反爬严重（微信）、注水严重（知乎/CSDN）、低质/抄袭/SEO垃圾/内容农场。所有有搜索需求的 skill/工具自动跳过 |
+| 档位 | 含义 | 算法规则 |
+|------|------|---------|
+| **S** | 高频信源 | 近 30 天点击 ≥ 10 次自动升 S。不用即掉回 A——时间会自然淘汰 |
+| **A** | 常规信源 | 默认档位。新源从此起步，持续使用冲 S，不用停留在 A。容纳绝大多数源 |
+| **X** | 黑名单 | **纯人工档位**。只有 `tier_override: X` 才进入。算法永不会自动标记 X |
+
+**为什么要用速率而不是总数？** 点击数只增不减，时间够长所有 A 都会变 S。30 天窗口 + ≥3 次阈值 = 只在持续使用时保持 S，停用 30 天自动掉回 A。
+
+**人工干预**：`tier_override` 字段覆盖算法判定。可用值：S/A/X。删除该字段即交还算法管理。
 
 ### 收录门槛（五条，必须全部满足）
 1. **一手优先**：原创/权威源，不收转载聚合站（如 RSS 聚合、今日热榜类）
@@ -40,14 +44,17 @@ Web 面板：http://localhost:3098
 ---
 title: "网站名称"               # 必填，人可读的名称
 url: https://www.example.com     # 必填，完整 HTTPS URL
-tier: S                          # 必填，S | A | block
+tier: A                          # 必填，S | A | X（算法动态计算，新源默认 A）
 domains: [AI, LLM]               # 必填，至少一个一级领域
 source_type: 权威源              # 必填，权威源 | 聚合源 | 平台 | 社区 | AI原生
-tags: [paper, daily]             # 必填，至少一个
+tags: [灵感, 参考]               # 必填，至少一个，中文
 why: "每日AI论文一手更新"        # 必填，一句话收录理由
 added: 2026-06-04                # 必填，首次收录日期
 search: "site:example.com {query}"  # 可选，搜索策略模板
-updated: 2026-06-04              # 可选，最近策展日期
+tier_override: S                 # 可选，锁定档位（S/A/X），删除即交还算法
+click_dates: [2026-06-14, 2026-06-10]  # 系统自动维护，近30天点击日期
+click_count: 12                  # 系统自动维护，历史累计点击
+last_used: 2026-06-14            # 系统自动维护，最近点击日期
 ---
 
 # 网站名称
@@ -58,7 +65,10 @@ updated: 2026-06-04              # 可选，最近策展日期
 ### 字段规则
 - **title**：网站的实际名称，不是 Chrome 书签路径（不要出现 `首页 \ 人类学` 这种东西）
 - **url**：必须带 `https://`，必须能直接点开。裸域名（`perplexity.ai`）视为格式错误
-- **tags**：至少 1 个，用英文小写。常见：`paper` `tutorial` `news` `daily` `reference` `tool` `inspiration` `community` `api` `opensource` `shopping`
+- **tier**：S/A/X，算法根据点击数自动计算。新源从 A 起步。人工可用 `tier_override` 锁定
+- **tier_override**（可选）：锁定档位。设为 S/A/X 后不受算法影响。删除此字段交还算法
+- **click_count**：系统自动维护，每次在面板点击链接 +1
+- **tags**：至少 1 个，用中文。常见：`灵感` `参考` `资讯` `每日` `社区` `购物` `工具` `教程`
 - **type**：统一用 `source`（非旧的 `entity`）。旧文件 `type: entity` 不强制修改
 - **文件名**：`{domain-name}.md`，如 `github-com.md`、`arxiv-org.md`。不用 `bm-` 前缀
 - **正文**：1-2 句描述 + Obsidian `[[wikilinks]]` 建立双向链接
@@ -85,7 +95,7 @@ curl -X POST http://localhost:3098/sources \
     "tier": "A",
     "domains": ["AI"],
     "source_type": "权威源",
-    "tags": ["research"],
+    "tags": ["灵感"],
     "why": "一句话理由"
   }'
 ```
@@ -109,7 +119,7 @@ curl -X POST http://localhost:3098/sources \
 | `last_used` > 90 天（S 档） | 人工审查：还在用？→ 更新 `last_used`。不再用？→ 降级为 A |
 | `last_used` > 90 天（A 档） | 候选删除。清理时优先删 |
 | URL 返回 4xx/5xx | 标记为 **dead**。301/302 更新 URL，404 直接删 |
-| `block` 档 | 不参与 decay（已标记为垃圾） |
+| `X` 档 | 不参与 decay（已标记为垃圾或算法沉底） |
 
 **清理流程：**
 1. 运行 `GET /sources/stale?days=90` → 获得候选列表，按 staleness 升序（最旧的排最前）
@@ -170,14 +180,15 @@ http://localhost:3098
 - 面板排序、stale 检测、POST /sources/touch 均依赖 `added` 和 `last_used`
 
 ### CSS 规则
-- `.tier-x` = block 档红色警示线（`#c00`），禁止重复定义
+- `.tier-x` = X 档红色警示线（`#c00`），禁止重复定义
 - `.src-url` = IKB 蓝（`var(--accent)`），不能用灰色——灰色看起来像失效链接
 - `row.stale` = `opacity: 0.5`，stale 检测门限 > 90 天 + 无 `last_used`
 
 ### 档位进化
-- 初始导入全 A 档是正常的——分类需要人工判断，不能一刀切
-- 策展流程：AI 扫描候选 → 呈报用户确认 → 批量落盘
-- S 档核心标准是**信任**，不是使用频率
+- 新源默认 A 档——算法根据近 30 天点击数自动升降
+- ≥ 10 次 → 升 S。不用 → 30 天后自然掉回 A
+- X 档纯人工——`tier_override: X`，算法永不动
+- S 是状态不是勋章——用就有，不用就掉
 
 ## 自检闸门
 
@@ -196,6 +207,6 @@ http://localhost:3098
 4. 档位无缺失 — 每个文件有 tier
 5. 类型无缺失 — 每个文件有 source_type
 6. 领域无缺失 — 每个文件有 domains
-7. 枚举值合法 — tier ∈ {S,A,block}，source_type ∈ 合法集
+7. 枚举值合法 — tier ∈ {S,A,X}，source_type ∈ 合法集
 
 实现：`server.js` 客户端 fetch `/health` → 展开面板查看逐项详情。`check.js` 是独立命令行版本（20 项检查，exit=1 硬闸门）。

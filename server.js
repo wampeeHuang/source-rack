@@ -46,17 +46,48 @@ function scanSources() {
   return files.map(f => {
     const raw = fs.readFileSync(path.join(SOURCES_DIR, f), 'utf8');
     const fm = frontmatter(raw);
-    return norm({ file: f, ...fm });
+    // Extract body description (after frontmatter, strip markdown heading)
+    const body = raw.replace(/^---\n[\s\S]*?---\n/, '').trim();
+    const desc = body.replace(/^#\s+.*(\n|$)/, '').trim();
+    var src = norm({ file: f, desc: desc || '', ...fm });
+    // Algorithm-driven tier: override takes precedence, else compute from usage
+    src._stored_tier = src.tier; // preserve what's on disk
+    src.tier = computeTier(src);
+    return src;
   });
 }
 
-const TIER_ORDER = { S: 0, A: 1, block: 2 };
+const TIER_ORDER = { S: 0, A: 1, X: 2 };
 
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
 function badgeClass(tier) {
-  const map = { S: 's', A: 'a', block: 'x' };
+  const map = { S: 's', A: 'a', X: 'x' };
   return 'tier-' + (map[tier] || 'c');
+}
+
+// Compute effective tier from usage data.
+// S: ≥3 clicks in the last 30 days (rate-based — decays naturally if unused)
+// A: default for all non-S, non-X sources
+// X: human-only — requires tier_override: X
+function computeTier(s) {
+  if (s.tier_override) return s.tier_override;
+  var recent = countRecentClicks(s);
+  if (recent >= 10) return 'S';
+  return 'A';
+}
+
+// Count click dates within the last 30 days
+function countRecentClicks(s) {
+  if (!s.click_dates || !Array.isArray(s.click_dates)) return 0;
+  var cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  var cutoffStr = cutoff.toISOString().slice(0, 10);
+  var count = 0;
+  for (var i = 0; i < s.click_dates.length; i++) {
+    if (s.click_dates[i] >= cutoffStr) count++;
+  }
+  return count;
 }
 
 const HTML = `<!DOCTYPE html>
@@ -71,24 +102,29 @@ const HTML = `<!DOCTYPE html>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&family=Noto+Sans+SC:wght@200;300;400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    /* Swiss IKB — single accent, flat, 0 radius, 0 shadow */
-    --paper: #fafaf8;
-    --ink: #0a0a0a;
-    --grey-1: #f0f0ee;
+    /* Warm ivory + clay — aligned with minds.evopearl.com */
+    --paper: #faf9f5;
+    --ink: #141413;
+    --ink-rgb: 20,20,19;
+    --grey-1: #f5f4ed;
     --grey-2: #d4d4d2;
     --grey-3: #737373;
-    --accent: #002FA7;
+    --accent: #d97757;
     --accent-on: #ffffff;
-    --text-primary: #0a0a0a;
+    --malachite: #509070;
+    --text-primary: #141413;
     --text-secondary: #525252;
     --text-helper: #737373;
     --text-placeholder: #a3a3a3;
-    --border-subtle: #e0e0e0;
+    --border-subtle: #e0ddd5;
     /* Carbon spacing */
     --sp-3: 8px; --sp-4: 12px; --sp-5: 16px; --sp-6: 24px; --sp-7: 32px; --sp-8: 40px;
-    --sans: "Inter", "Helvetica Neue", "Helvetica", "Arial", system-ui, -apple-system, sans-serif;
+    --sans: "DM Sans", "Inter", "Helvetica Neue", "Helvetica", "Arial", system-ui, -apple-system, sans-serif;
     --sans-zh: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
-    --mono: "JetBrains Mono", "SF Mono", "Cascadia Code", "Consolas", ui-monospace, monospace;
+    --serif: "Noto Serif SC", "Source Serif 4", Georgia, serif;
+    --mono: "IBM Plex Mono", "JetBrains Mono", "SF Mono", "Cascadia Code", "Consolas", ui-monospace, monospace;
+    --radius-sm: 6px; --radius-md: 8px; --radius-pill: 20px;
+    --shadow-card: 0 1px 1px rgba(0,0,0,0.04), 0 4px 4px rgba(0,0,0,0.03);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -99,15 +135,15 @@ const HTML = `<!DOCTYPE html>
 
   /* ── Header ── */
   .topbar {
-    padding: var(--sp-7) 5vw var(--sp-6);
+    padding: var(--sp-7) 24px var(--sp-6);
     display: flex; align-items: flex-end; justify-content: space-between;
-    border-bottom: 2px solid var(--accent);
+    border-bottom: 2px solid var(--ink);
   }
   .topbar .head-group { display: flex; align-items: center; gap: var(--sp-4); }
   .topbar .logo { flex-shrink: 0; }
   .topbar h1 {
-    font-family: var(--sans), var(--sans-zh);
-    font-size: 26px; font-weight: 200; letter-spacing: -0.025em;
+    font-family: var(--serif), var(--sans-zh);
+    font-size: 28px; font-weight: 700; letter-spacing: -0.02em;
     color: var(--ink); line-height: 1;
   }
   .topbar .sub {
@@ -178,13 +214,8 @@ const HTML = `<!DOCTYPE html>
     transition: border-color 0.15s var(--ease-prod, cubic-bezier(.2,0,.38,.9));
   }
   .search-btn:hover { color: var(--accent); }
-  .topbar .search-wrap::before {
-    content: "⌕"; position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
-    font-size: 14px; color: var(--text-placeholder); pointer-events: none;
-  }
-
   /* ── Container ── */
-  .container { max-width: 1600px; margin: 0 auto; padding: var(--sp-6) 5vw; }
+  .container { max-width: 1600px; margin: 0 auto; padding: var(--sp-6) 24px; }
 
   /* ── Filters ── */
   .filter-panel { margin-bottom: var(--sp-6); }
@@ -196,24 +227,27 @@ const HTML = `<!DOCTYPE html>
   .filter-row::-webkit-scrollbar { display: none; }
   .filter-row:last-of-type { padding-bottom: var(--sp-3); }
   .filter-row-label {
-    font-size: 11px; font-weight: 600; color: var(--text-helper);
-    text-transform: uppercase; letter-spacing: 0.06em;
+    font-family: var(--mono); font-size: 10px; font-weight: 500;
+    color: rgba(var(--ink-rgb), 0.35); text-transform: uppercase;
+    letter-spacing: 0.08em;
     min-width: 32px; flex-shrink: 0;
   }
   .chip {
-    padding: 5px 13px; font-size: 13px; font-weight: 500;
-    background: var(--paper); border: 1px solid var(--border-subtle); cursor: pointer;
-    transition: all 0.12s; user-select: none; white-space: nowrap;
-    color: var(--text-secondary); display: inline-flex; align-items: center; gap: 5px;
+    padding: 7px 18px; font-size: 13px; font-weight: 500;
+    background: transparent; border: 1px solid rgba(var(--ink-rgb), 0.12);
+    cursor: pointer; border-radius: var(--radius-pill);
+    transition: all 0.18s; user-select: none; white-space: nowrap;
+    color: rgba(var(--ink-rgb), 0.6); display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--mono); letter-spacing: 0.04em;
   }
   .domain-icon { display: inline-flex; align-items: center; flex-shrink: 0; color: var(--accent); }
   .chip.active .domain-icon { color: var(--accent-on); }
   .chip.parent-active .domain-icon { color: var(--accent); }
   .domain-icon svg { display: block; }
-  .chip:hover { border-color: var(--grey-3); color: var(--ink); }
-  .chip.active { background: var(--accent); color: var(--accent-on); border-color: var(--accent); }
-  .chip.parent-active { border-color: var(--accent); color: var(--accent); }
-  .chip.dim { opacity: 0.3; pointer-events: none; }
+  .chip:hover { background: var(--grey-1); color: var(--ink); border-color: rgba(var(--ink-rgb), 0.25); }
+  .chip.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .chip.parent-active { border-color: var(--accent); color: var(--accent); background: rgba(217,119,87,0.06); }
+  .chip.dim { opacity: 0.25; pointer-events: none; }
   .chip strong { font-weight: 600; }
   /* tooltip — positioned above chip, out of flow */
   .chip[data-tip] { position: relative; }
@@ -221,9 +255,10 @@ const HTML = `<!DOCTYPE html>
     content: attr(data-tip);
     position: absolute; bottom: calc(100% + 6px); left: 50%;
     transform: translateX(-50%);
-    background: var(--ink); color: #fff;
+    background: var(--grey-1); color: var(--ink);
     padding: 6px 12px; font-size: 12px; line-height: 1.5;
     white-space: nowrap; z-index: 999; pointer-events: none;
+    border: 1px solid rgba(var(--ink-rgb), 0.08);
   }
   .domain-sep {
     padding: 4px 2px; font-size: 10px; color: var(--text-placeholder);
@@ -238,19 +273,20 @@ const HTML = `<!DOCTYPE html>
   /* ── List ── */
   .list { border: 1px solid var(--border-subtle); }
   .list-h {
-    display: grid; grid-template-columns: 52px 150px 1fr 100px 140px 220px;
-    padding: 11px var(--sp-5); border-bottom: 1px solid var(--ink);
-    background: var(--ink); font-size: 11px; font-weight: 600;
-    color: rgba(255,255,255,0.55); text-transform: uppercase; letter-spacing: 0.06em;
+    display: grid; grid-template-columns: 52px 1fr 150px 100px 140px 220px;
+    padding: 11px var(--sp-5); border-bottom: 1px solid rgba(var(--ink-rgb), 0.9);
+    background: var(--ink); font-size: 11px; font-weight: 500;
+    color: rgba(255,255,255,0.5); letter-spacing: 0.05em;
     align-items: center; gap: var(--sp-4);
+    font-family: var(--mono); text-transform: uppercase;
   }
   .row {
-    display: grid; grid-template-columns: 52px 150px 1fr 100px 140px 220px;
+    display: grid; grid-template-columns: 52px 1fr 150px 100px 140px 220px;
     padding: 13px var(--sp-5); border-bottom: 1px solid var(--border-subtle);
     align-items: center; gap: var(--sp-4); transition: background 0.1s;
   }
   .row:last-child { border-bottom: none; }
-  .row:hover { background: var(--grey-1); }
+  .row:hover { background: rgba(217,119,87,0.04); }
   .row.hidden { display: none; }
   .row.stale { opacity: 0.5; }
   .row.stale:hover { opacity: 0.85; }
@@ -263,40 +299,63 @@ const HTML = `<!DOCTYPE html>
 
   /* ── Tier badge ── */
   .tier-badge {
-    width: 30px; height: 30px; font-weight: 600; font-size: 13px;
+    width: 30px; height: 30px; font-weight: 600; font-size: 12px;
     display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-    font-family: var(--sans);
+    font-family: var(--mono); border-radius: var(--radius-sm);
   }
-  .tier-s { background: none; color: var(--ink); border: 1px solid var(--ink); }
-  .tier-a { background: none; color: var(--text-secondary); border: 1px solid var(--border-subtle); }
-  .tier-x { background: none; color: #c00; border: 1px solid #c00; }
+  .tier-s { color: var(--accent); border: 1.5px solid var(--accent); background: rgba(217,119,87,0.06); }
+  .tier-a { color: rgba(var(--ink-rgb), 0.35); border: 1px solid rgba(var(--ink-rgb), 0.12); }
+  .tier-x { color: #c00; border: 1.5px solid #c00; background: rgba(204,0,0,0.04); }
 
   /* ── Cell chips: domain / type / strategy / tag — all chip-style ── */
   .cell-chip {
-    display: inline-block; padding: 3px 10px; font-size: 12px; font-weight: 500;
-    border: 1px solid var(--border-subtle); color: var(--text-secondary);
-    white-space: nowrap; cursor: default;
+    display: inline-block; padding: 3px 10px; font-size: 11px; font-weight: 500;
+    border: 1px solid rgba(var(--ink-rgb), 0.08); color: rgba(var(--ink-rgb), 0.5);
+    white-space: nowrap; cursor: default; border-radius: var(--radius-sm);
+    font-family: var(--mono); letter-spacing: 0.03em;
   }
   .cell-chip.clickable { cursor: pointer; }
-  .cell-chip.clickable:hover { border-color: var(--accent); color: var(--accent); background: none; }
+  .cell-chip.clickable:hover { border-color: rgba(var(--ink-rgb), 0.25); color: var(--ink); background: var(--grey-1); }
   .cell-chip.muted { color: var(--text-helper); }
 
   .domain-badge { margin-right: 4px; margin-bottom: 3px; }
   .domain-cell { display: flex; flex-wrap: nowrap; gap: 0; overflow: hidden; }
   .src-type { margin-right: 4px; }
   .tag {
-    display: inline-block; padding: 3px 10px; font-size: 12px; font-weight: 500;
-    border: 1px solid var(--border-subtle); color: var(--text-secondary);
+    display: inline-block; padding: 3px 10px; font-size: 11px; font-weight: 500;
+    border: 1px solid rgba(var(--ink-rgb), 0.08); color: rgba(var(--ink-rgb), 0.5);
     white-space: nowrap; margin-right: 4px; margin-bottom: 3px;
+    border-radius: var(--radius-sm); font-family: var(--mono); letter-spacing: 0.03em;
   }
   .tag.clickable { cursor: pointer; }
-  .tag.clickable:hover { background: var(--accent); color: var(--accent-on); border-color: var(--accent); }
+  .tag.clickable:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
   .tag-cell { display: flex; flex-wrap: nowrap; gap: 3px; overflow: hidden; }
 
   /* ── Source info ── */
-  .src-name { font-weight: 500; font-size: 14px; color: var(--ink); }
+  .src-name { font-weight: 600; font-size: 14px; color: var(--ink); letter-spacing: -0.01em; }
   .src-url, .src-url:visited { font-size: 12px; color: var(--accent); margin-top: 1px; font-family: var(--mono); text-decoration: none; }
   .src-url:hover { color: var(--ink); text-decoration: underline; }
+  .src-desc { font-size: 12px; color: var(--text-secondary); margin-top: 4px; line-height: 1.5; max-width: 480px; }
+  .click-badge {
+    font-size: 11px; font-weight: 600;
+    padding: 2px 8px; margin-left: 6px;
+    display: inline-block; vertical-align: middle;
+    color: #9ca3af; border: 1px solid #e5e7eb;
+  }
+  .click-warm { color: #d97706; border-color: #fcd34d; background: rgba(245,158,11,0.08); }
+  .click-hot  { color: #fff; background: #ef4444; border-color: #ef4444; }
+  a.heat-toggle {
+    font-family: var(--serif); font-size: 13px; font-weight: 600;
+    color: var(--malachite); text-decoration: none;
+    cursor: pointer; padding: 4px 14px;
+    border: 1px solid rgba(80,144,112,0.35);
+    border-radius: var(--radius-pill);
+    user-select: none; display: inline-block;
+    transition: all 0.18s; letter-spacing: 0.03em;
+  }
+  a.heat-toggle:hover { background: rgba(80,144,112,0.08); border-color: var(--malachite); }
+  a.heat-toggle.on { color: var(--accent); border-color: rgba(217,119,87,0.35); }
+  a.heat-toggle.on:hover { background: rgba(217,119,87,0.08); border-color: var(--accent); }
   .favicon { flex-shrink: 0; opacity: 0.85; }
 
   .empty { padding: 64px; text-align: center; color: var(--text-helper); font-size: 13px; font-weight: 300; }
@@ -359,10 +418,10 @@ const HTML = `<!DOCTYPE html>
   <div class="filter-panel">
     <div class="filter-row">TIER_CHIPS_ROW
     </div>
-    <div class="filter-row">
+    <div class="filter-row domain-top-row">
       DOMAIN_TOP_ROW
     </div>
-    <div class="filter-row" id="subDomainRow" style="display:none">
+    <div class="filter-row" id="subDomainRow" style="display:none;">
       DOMAIN_SUB_ROW
     </div>
     <div class="filter-row">
@@ -373,7 +432,7 @@ const HTML = `<!DOCTYPE html>
 
   <div class="list">
     <div class="list-h">
-      <div>档位</div><div>领域</div><div>来源</div><div>类型</div><div>搜索策略</div><div>标签</div>
+      <div>档位</div><div>来源 <a class="heat-toggle" id="heatToggle" href="javascript:" onclick="toggleHeat()" title="当前：按热度降序——近30天点击最多的在最上面">热度↓</a></div><div>领域</div><div>类型</div><div>搜索策略</div><div>标签</div>
     </div>
     <div id="listBody">SOURCES_PLACEHOLDER_ROWS</div>
   </div>
@@ -403,7 +462,7 @@ const HTML = `<!DOCTYPE html>
       <div class="principle">
         <div class="principle-num">05</div>
         <div class="principle-head">优胜劣汰</div>
-        <div class="principle-body">新陈代谢是活的标志。不用的沉底，404 淘汰，用过的浮上来。只进不出是垃圾场。</div>
+        <div class="principle-body">新陈代谢是活的标志。不用的沉底，404 淘汰。S = 近 30 天 ≥ 10 次点击（算法自动），A = 默认档位，X = 纯人工黑名单。每次点击都在为它投票——只进不出是垃圾场。</div>
       </div>
     </div>
   </div>
@@ -413,55 +472,55 @@ const HTML = `<!DOCTYPE html>
     <svg viewBox="0 0 1480 340" class="arch-svg" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <marker id="arrowHead" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
-          <polygon points="0 0, 10 4, 0 8" fill="#002FA7"/>
+          <polygon points="0 0, 10 4, 0 8" fill="#d97757"/>
         </marker>
         <marker id="arrowFeedback" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
           <polygon points="0 0, 10 4, 0 8" fill="#999"/>
         </marker>
         <linearGradient id="pillGrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stop-color="#002FA7"/>
+          <stop offset="0%" stop-color="#d97757"/>
           <stop offset="100%" stop-color="#0040c0"/>
         </linearGradient>
       </defs>
 
       <!-- ====== NODE 1: 发现 (terminator/pill) ====== -->
-      <rect x="30" y="75" width="220" height="90" rx="45" fill="url(#pillGrad)" stroke="#002FA7" stroke-width="2"/>
+      <rect x="30" y="75" width="220" height="90" rx="45" fill="url(#pillGrad)" stroke="#d97757" stroke-width="2"/>
       <text x="140" y="112" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="17" font-weight="700">01 · 发现</text>
       <text x="140" y="135" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-family="system-ui,sans-serif" font-size="13">AI 对话 / 用户推荐</text>
 
       <!-- Arrow 1→2 -->
-      <line x1="250" y1="120" x2="335" y2="120" stroke="#002FA7" stroke-width="2" marker-end="url(#arrowHead)"/>
+      <line x1="250" y1="120" x2="335" y2="120" stroke="#d97757" stroke-width="2" marker-end="url(#arrowHead)"/>
 
       <!-- ====== NODE 2: 收录 (process rect) ====== -->
-      <rect x="345" y="75" width="220" height="90" rx="6" fill="#fff" stroke="#002FA7" stroke-width="2"/>
-      <rect x="345" y="75" width="6" height="90" rx="3" fill="#002FA7"/>
+      <rect x="345" y="75" width="220" height="90" rx="6" fill="#fff" stroke="#d97757" stroke-width="2"/>
+      <rect x="345" y="75" width="6" height="90" rx="3" fill="#d97757"/>
       <text x="455" y="112" text-anchor="middle" fill="#222" font-family="system-ui,sans-serif" font-size="17" font-weight="700">02 · 收录</text>
       <text x="455" y="135" text-anchor="middle" fill="#666" font-family="system-ui,sans-serif" font-size="13">POST /sources 校验落盘</text>
 
       <!-- Arrow 2→3 -->
-      <line x1="565" y1="120" x2="625" y2="120" stroke="#002FA7" stroke-width="2" marker-end="url(#arrowHead)"/>
+      <line x1="565" y1="120" x2="625" y2="120" stroke="#d97757" stroke-width="2" marker-end="url(#arrowHead)"/>
 
       <!-- ====== NODE 3: 存储 (cylinder/data shape) ====== -->
-      <path d="M 635,80 A 110,15 0 0,0 855,80 L 855,150 A 110,15 0 0,1 635,150 Z" fill="#f8f9ff" stroke="#002FA7" stroke-width="2"/>
-      <ellipse cx="745" cy="80" rx="110" ry="15" fill="#e8ecff" stroke="#002FA7" stroke-width="2"/>
+      <path d="M 635,80 A 110,15 0 0,0 855,80 L 855,150 A 110,15 0 0,1 635,150 Z" fill="#fdf5f2" stroke="#d97757" stroke-width="2"/>
+      <ellipse cx="745" cy="80" rx="110" ry="15" fill="#fbe8df" stroke="#d97757" stroke-width="2"/>
       <text x="745" y="110" text-anchor="middle" fill="#222" font-family="system-ui,sans-serif" font-size="17" font-weight="700">03 · 存储</text>
       <text x="745" y="133" text-anchor="middle" fill="#666" font-family="system-ui,sans-serif" font-size="13">Obsidian .md YAML frontmatter</text>
 
       <!-- Arrow 3→4 -->
-      <line x1="865" y1="120" x2="925" y2="120" stroke="#002FA7" stroke-width="2" marker-end="url(#arrowHead)"/>
+      <line x1="865" y1="120" x2="925" y2="120" stroke="#d97757" stroke-width="2" marker-end="url(#arrowHead)"/>
 
       <!-- ====== NODE 4: 查询 (process rect) ====== -->
-      <rect x="935" y="75" width="220" height="90" rx="6" fill="#fff" stroke="#002FA7" stroke-width="2"/>
-      <rect x="935" y="75" width="6" height="90" rx="3" fill="#002FA7"/>
+      <rect x="935" y="75" width="220" height="90" rx="6" fill="#fff" stroke="#d97757" stroke-width="2"/>
+      <rect x="935" y="75" width="6" height="90" rx="3" fill="#d97757"/>
       <text x="1045" y="112" text-anchor="middle" fill="#222" font-family="system-ui,sans-serif" font-size="17" font-weight="700">04 · 查询</text>
       <text x="1045" y="135" text-anchor="middle" fill="#666" font-family="system-ui,sans-serif" font-size="13">面板过滤 + AI grep 检索</text>
 
       <!-- Arrow 4→5 -->
-      <line x1="1155" y1="120" x2="1215" y2="120" stroke="#002FA7" stroke-width="2" marker-end="url(#arrowHead)"/>
+      <line x1="1155" y1="120" x2="1215" y2="120" stroke="#d97757" stroke-width="2" marker-end="url(#arrowHead)"/>
 
       <!-- ====== NODE 5: 代谢 (process rect) ====== -->
-      <rect x="1225" y="75" width="220" height="90" rx="6" fill="#fff" stroke="#002FA7" stroke-width="2"/>
-      <rect x="1225" y="75" width="6" height="90" rx="3" fill="#002FA7"/>
+      <rect x="1225" y="75" width="220" height="90" rx="6" fill="#fff" stroke="#d97757" stroke-width="2"/>
+      <rect x="1225" y="75" width="6" height="90" rx="3" fill="#d97757"/>
       <text x="1335" y="112" text-anchor="middle" fill="#222" font-family="system-ui,sans-serif" font-size="17" font-weight="700">05 · 代谢</text>
       <text x="1335" y="135" text-anchor="middle" fill="#666" font-family="system-ui,sans-serif" font-size="13">last_used 排序 · 沉底淘汰</text>
 
@@ -506,56 +565,46 @@ function setDomain(d) {
   var clicked = document.querySelector('.filter-row .chip[data-domain="' + d + '"]');
   if (clicked) clicked.classList.add('active');
   // Show 二级 row when a 一级 is selected, show only relevant sub-chips
-  var subRow = document.getElementById('subDomainRow');
+  var subChips = document.querySelectorAll('.sub-chip');
   var TOP_DOMAINS = ['AI','设计','电商','工具','开发','前端','产品','写作','学习','社区','媒体','参考','搜索'];
+  var subRow = document.getElementById('subDomainRow');
   if (d === 'all') {
-    if (subRow) {
-      subRow.style.display = 'none';
-      // Restore global counts
-      subRow.querySelectorAll('.sub-chip').forEach(function(c) {
-        var gc = c.dataset.globalCount;
-        var strong = c.querySelector('strong');
-        if (strong && gc) strong.textContent = gc;
-      });
-    }
+    subChips.forEach(function(c) { c.style.display = 'none'; });
+    if (subRow) subRow.style.display = 'none';
   } else if (TOP_DOMAINS.indexOf(d) >= 0) {
-    if (subRow) {
-      subRow.style.display = 'flex';
-      subRow.querySelectorAll('.sub-chip').forEach(function(c) {
-        var parents = (c.dataset.parents || '').split(' ');
-        if (parents.indexOf(d) >= 0) {
-          c.style.display = '';
-          // Show per-primary count
-          var pcs;
-          try { pcs = JSON.parse(c.dataset.parentCounts || '{}'); } catch(e) { pcs = {}; }
-          var count = pcs[d] || 0;
-          var strong = c.querySelector('strong');
-          if (strong) strong.textContent = count;
-        } else {
-          c.style.display = 'none';
-        }
-      });
-    }
-  } else {
-    // Secondary domain: highlight parent primary chips, restore global sub-chip counts
-    if (subRow) {
-      // Restore global counts on all sub-chips
-      subRow.querySelectorAll('.sub-chip').forEach(function(c) {
-        var gc = c.dataset.globalCount;
+    if (subRow) subRow.style.display = '';
+    subChips.forEach(function(c) {
+      var parents = (c.dataset.parents || '').split(' ');
+      if (parents.indexOf(d) >= 0) {
+        c.style.display = '';
+        var pcs;
+        try { pcs = JSON.parse(c.dataset.parentCounts || '{}'); } catch(e) { pcs = {}; }
+        var count = pcs[d] || 0;
         var strong = c.querySelector('strong');
-        if (strong && gc) strong.textContent = gc;
-      });
-      // Find clicked sub-chip to get its parents
-      subRow.querySelectorAll('.sub-chip').forEach(function(c) {
-        if (c.dataset.domain === d) {
-          var parents = (c.dataset.parents || '').split(' ');
-          parents.forEach(function(p) {
-            var parentChip = document.querySelector('.filter-row .chip[data-domain="' + p + '"]');
-            if (parentChip) parentChip.classList.add('parent-active');
-          });
-        }
-      });
-    }
+        if (strong) strong.textContent = count;
+      } else {
+        c.style.display = 'none';
+      }
+    });
+  } else {
+    // Secondary domain: show all sub-chips, restore global counts, highlight parents
+    if (subRow) subRow.style.display = '';
+    subChips.forEach(function(c) { c.style.display = ''; });
+    subChips.forEach(function(c) {
+      var gc = c.dataset.globalCount;
+      var strong = c.querySelector('strong');
+      if (strong && gc) strong.textContent = gc;
+    });
+    // Highlight parent primary chips for the selected secondary domain
+    subChips.forEach(function(c) {
+      if (c.dataset.domain === d) {
+        var parents = (c.dataset.parents || '').split(' ');
+        parents.forEach(function(p) {
+          var parentChip = document.querySelector('.filter-row .chip[data-domain="' + p + '"]');
+          if (parentChip) parentChip.classList.add('parent-active');
+        });
+      }
+    });
   }
   applyFilters();
 }
@@ -683,14 +732,59 @@ document.addEventListener('DOMContentLoaded', function() {
     dot.classList.add('red');
     statusEl.textContent = '无法连接 — 刷新试试';
   });
+
+  // Click tracking: fire touch on every source link click
+  document.addEventListener('click', function(e) {
+    var link = e.target.closest('.src-url');
+    if (!link) return;
+    var fname = link.dataset.file;
+    if (!fname) return;
+    fetch('/sources/touch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file: fname })
+    }).catch(function() { /* silent */ });
+  });
 });
+
+var heatMode = 'hot'; // 'hot' | 'cold'
+
+// Capture original server order on load
+(function() {
+  var rows = document.querySelectorAll('#listBody .row');
+  for (var i = 0; i < rows.length; i++) { rows[i].dataset.origOrder = i; }
+})();
+
+function toggleHeat() {
+  heatMode = heatMode === 'hot' ? 'cold' : 'hot';
+  var btn = document.getElementById('heatToggle');
+  btn.classList.remove('on');
+  if (heatMode === 'hot') {
+    btn.textContent = '热度↓';
+    btn.title = '当前：按热度降序——近30天点击最多的在最上面';
+  } else {
+    btn.textContent = '热度↑';
+    btn.title = '当前：按热度升序——近30天点击最少的在最上面';
+    btn.classList.add('on');
+  }
+
+  var list = document.getElementById('listBody');
+  var rows = Array.from(list.querySelectorAll('.row'));
+  rows.sort(function(a, b) {
+    var aC = parseInt(a.dataset.clicks, 10) || 0;
+    var bC = parseInt(b.dataset.clicks, 10) || 0;
+    return heatMode === 'hot' ? bC - aC : aC - bC;
+  });
+  rows.forEach(function(r) { list.appendChild(r); });
+  applyFilters();
+}
 </script>
 </body>
 </html>`;
 
 const SERVER_START_SCRIPT = `
 const SOURCES_DIR = '${SOURCES_DIR.replace(/\\/g, '\\\\')}';
-const TIER_ORDER = { S:0, A:1 };
+const TIER_ORDER = { S:0, A:1, X:2 };
 `;
 
 // ─── Auto-assign secondary domains ───
@@ -808,7 +902,7 @@ function appFactory() {
 
   // POST /sources — add a new source
   app.post('/sources', function(req, res) {
-    const VALID_TIERS = ['S', 'A', 'block'];
+    const VALID_TIERS = ['S', 'A', 'X'];
     const VALID_TYPES = ['权威源', '聚合源', '平台', '社区', 'AI原生'];
 
     const b = req.body;
@@ -816,7 +910,7 @@ function appFactory() {
 
     if (!b.title || typeof b.title !== 'string') errors.push('title is required');
     if (!b.why || typeof b.why !== 'string' || b.why.trim().length < 6) errors.push('why is required (min 6 chars)');
-    if (!VALID_TIERS.includes(b.tier)) errors.push('tier must be S, A, or block');
+    if (!VALID_TIERS.includes(b.tier)) errors.push('tier must be S, A, or X');
     if (!Array.isArray(b.domains) || b.domains.length === 0) errors.push('domains must be a non-empty array');
     if (!VALID_TYPES.includes(b.source_type)) errors.push('source_type invalid: must be 权威源|聚合源|平台|社区|AI原生');
     if (!Array.isArray(b.tags) || b.tags.length === 0) errors.push('tags must be a non-empty array');
@@ -897,7 +991,7 @@ function appFactory() {
     }
   });
 
-  // POST /sources/touch — update last_used timestamp
+  // POST /sources/touch — update last_used + track click_dates (30-day window)
   app.post('/sources/touch', function(req, res) {
     var fname = req.body.file;
     if (!fname) return res.status(400).json({ ok: false, errors: ['file is required'] });
@@ -905,20 +999,49 @@ function appFactory() {
     if (!fs.existsSync(filePath)) return res.status(404).json({ ok: false, errors: ['file not found: ' + fname] });
     var raw = fs.readFileSync(filePath, 'utf8');
     var today = new Date().toISOString().slice(0, 10);
-    var updated;
-    if (/^---\n[\s\S]*?---\n/.test(raw)) {
-      if (/last_used:/.test(raw)) {
-        updated = raw.replace(/(last_used:\s*).*/, '$1' + today);
-      } else if (/^added:/.test(raw)) {
-        updated = raw.replace(/^(added:.*\n)/m, '$1last_used: ' + today + '\n');
-      } else {
-        updated = raw.replace(/^(url:.*\n)/m, '$1last_used: ' + today + '\n');
-      }
-    } else {
+    var updated = raw;
+    if (!/^---\n[\s\S]*?---\n/.test(raw)) {
       return res.status(400).json({ ok: false, errors: ['no frontmatter found'] });
     }
+    // Update last_used
+    if (/last_used:/.test(updated)) {
+      updated = updated.replace(/(last_used:\s*).*/, '$1' + today);
+    } else if (/^added:/.test(updated)) {
+      updated = updated.replace(/^(added:.*\n)/m, '$1last_used: ' + today + '\n');
+    } else {
+      updated = updated.replace(/^(url:.*\n)/m, '$1last_used: ' + today + '\n');
+    }
+    // Increment total click_count (historical, kept for reference)
+    if (/click_count:/.test(updated)) {
+      updated = updated.replace(/click_count:\s*(\d+)/, function(m, n) { return 'click_count: ' + (parseInt(n, 10) + 1); });
+    } else {
+      updated = updated.replace(/^(last_used:.*\n)/m, '$1click_count: 1\n');
+    }
+    // Maintain click_dates — last 30 days only
+    var cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 30);
+    var cutoffStr = cutoff.toISOString().slice(0, 10);
+    if (/click_dates:/.test(updated)) {
+      // Append today, prune old dates
+      var datesMatch = updated.match(/click_dates:\s*\[([^\]]*)\]/);
+      if (datesMatch) {
+        var dates = datesMatch[1].split(',').map(function(s) { return s.trim().replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1'); }).filter(Boolean);
+        dates.push(today);
+        // Deduplicate and keep only dates >= cutoff
+        var seen = {};
+        var filtered = [];
+        for (var i = dates.length - 1; i >= 0; i--) {
+          if (dates[i] >= cutoffStr && !seen[dates[i]]) { filtered.unshift(dates[i]); seen[dates[i]] = true; }
+        }
+        updated = updated.replace(/click_dates:\s*\[[^\]]*\]/, 'click_dates: [' + filtered.join(', ') + ']');
+        var recent = filtered.length;
+      }
+    } else {
+      updated = updated.replace(/^(last_used:.*\n)/m, '$1click_dates: [' + today + ']\n');
+      var recent = 1;
+    }
     fs.writeFileSync(filePath, updated, 'utf8');
-    res.json({ ok: true, file: fname, last_used: today });
+    res.json({ ok: true, file: fname, last_used: today, click_count: parseInt((updated.match(/click_count:\s*(\d+)/) || [0,0])[1], 10), recent: recent || 1 });
   });
 
   // GET /sources/stale — sources sorted by staleness (candidates for cleanup)
@@ -929,7 +1052,7 @@ function appFactory() {
     var cutoffStr = cutoff.toISOString().slice(0, 10);
     var sources = scanSources();
     var stale = sources.filter(function(s) {
-      if (s.tier === 'block') return false;
+      if (s.tier === 'X') return false;
       if (s.last_used && s.last_used >= cutoffStr) return false;
       if (s.added && s.added >= cutoffStr) return false;
       return true;
@@ -958,7 +1081,10 @@ function appFactory() {
     sources.sort(function(a, b) {
       var tierDiff = (TIER_ORDER[a.tier] ?? 9) - (TIER_ORDER[b.tier] ?? 9);
       if (tierDiff !== 0) return tierDiff;
-      // Within same tier: last_used desc, then added desc — stale sinks to bottom
+      // Within same tier: recent clicks (30d) desc, then last_used desc, then added desc
+      var aRC = countRecentClicks(a);
+      var bRC = countRecentClicks(b);
+      if (aRC !== bRC) return bRC - aRC;
       var aLU = a.last_used || '0000-00-00';
       var bLU = b.last_used || '0000-00-00';
       if (aLU !== bLU) return bLU.localeCompare(aLU);
@@ -1068,14 +1194,14 @@ function appFactory() {
     // Build tier chips
     const tierCounts = {};
     sources.forEach(function(s) { if (s.tier) tierCounts[s.tier] = (tierCounts[s.tier] || 0) + 1; });
-    const tierLabels = { S: 'S 固定信源', A: 'A 补充信源', block: '✕ 黑名单' };
+    const tierLabels = { S: 'S 高频信源', A: 'A 常规信源', X: 'X 黑名单' };
     const tierTips = {
-      S: '无论如何都信任的权威来源。跟使用频率无关——哪怕一个月没打开，依然相信。一手/权威/不可替代',
-      A: '不够权威但可补充查阅。有可替代方案，交叉验证使用',
-      block: '绝对不用。反爬严重/注水严重/低质/抄袭/SEO垃圾/内容农场。所有搜索自动跳过',
+      S: '算法判定：近 30 天点击 ≥ 10 次自动升 S。不用即掉回 A——S 是状态，不是勋章。也可人工 tier_override 锁定',
+      A: '算法判定：默认档位。新源从此起步，持续使用冲 S，不用停留在 A',
+      X: '纯人工档位。只有 tier_override: X 才会进入。算法永不会自动标记 X',
     };
     let tierChipsHTML = '<span class="filter-row-label">档位</span>\n<span class="chip active" data-tier="all" onclick="setTier(\'all\')">全部</span>\n';
-    ['S', 'A', 'block'].forEach(function(t) {
+    ['S', 'A', 'X'].forEach(function(t) {
       const n = tierCounts[t] || 0;
       const tip = tierTips[t] || '';
       tierChipsHTML += '<span class="chip" data-tier="' + t + '" onclick="setTier(\'' + t + '\')"' + (tip ? ' data-tip="' + esc(tip) + '"' : '') + '>' + tierLabels[t] + ' <strong>' + n + '</strong></span>\n';
@@ -1152,10 +1278,10 @@ function appFactory() {
           : domainsArr.map(function(d) { return '<span class="cell-chip clickable domain-badge" onclick="event.stopPropagation();setDomain(\'' + esc(d) + '\')" title="按领域筛选：' + esc(d) + '">' + esc(d) + '</span>'; }).join('');
         const fv = favicon(s.url);
         const stype = s.source_type || '';
-        return '<div class="row' + staleClass(s) + '" data-tier="' + esc(s.tier||'') + '" data-domain="' + esc(domainsArr.join(' ')) + '" data-type="' + esc(stype) + '" data-text="' + esc((s.title||'') + ' ' + (s.url||'') + ' ' + (s.tags||[]).join(' ') + ' ' + domainsArr.join(' ')) + '">' +
-          '<div class="tier-badge ' + badgeClass(s.tier) + '">' + (s.tier === 'block' ? '✕' : esc(s.tier||'?')) + '</div>' +
+        return '<div class="row' + staleClass(s) + '" data-tier="' + esc(s.tier||'') + '" data-domain="' + esc(domainsArr.join(' ')) + '" data-type="' + esc(stype) + '" data-clicks="' + countRecentClicks(s) + '" data-text="' + esc((s.title||'') + ' ' + (s.url||'') + ' ' + (s.tags||[]).join(' ') + ' ' + domainsArr.join(' ')) + '">' +
+          '<div class="tier-badge ' + badgeClass(s.tier) + '" title="' + (s.tier_override ? '人工锁定: ' + s.tier_override : '算法判定: 近30天点击' + (function(){var rc=countRecentClicks(s);return rc;})() + '次 (累计' + (s.click_count||0) + ')') + '">' + esc(s.tier||'?') + '</div>' +
+          '<div style="display:flex;align-items:center;gap:10px;"><img class="favicon" src="' + fv + '" width="20" height="20" loading="lazy" onerror="this.style.display=\'none\'"><div><div class="src-name">' + esc(s.title||s.file||'') + (function(){var rc=countRecentClicks(s);return rc>0?' <span class="click-badge'+(rc>=10?' click-hot':rc>=5?' click-warm':'')+'" title="近30天 '+rc+' 次 (累计'+(s.click_count||0)+')">'+rc+'</span>':'';})() + staleLabel(s) + '</div><a class="src-url" href="' + esc(hrefUrl(s.url||'')) + '" target="_blank" rel="noopener" data-file="' + esc(s.file||'') + '">' + esc(displayUrl(s.url||'')) + '</a>' + (s.desc ? '<div class="src-desc">' + esc(s.desc) + '</div>' : '') + '</div></div>' +
           '<div class="domain-cell">' + domainBadges + '</div>' +
-          '<div style="display:flex;align-items:center;gap:10px;"><img class="favicon" src="' + fv + '" width="20" height="20" loading="lazy" onerror="this.style.display=\'none\'"><div><div class="src-name">' + esc(s.title||s.file||'') + staleLabel(s) + '</div><a class="src-url" href="' + esc(hrefUrl(s.url||'')) + '" target="_blank" rel="noopener">' + esc(displayUrl(s.url||'')) + '</a></div></div>' +
           '<div><span class="cell-chip clickable src-type" onclick="event.stopPropagation();setType(\'' + esc(stype) + '\')" title="按类型筛选：' + esc(stype) + '">' + esc(stype) + '</span></div>' +
           '<div><span class="cell-chip muted">' + strategy(s.source_type) + '</span></div>' +
           '<div class="tag-cell">' + tags + '</div>' +
@@ -1180,7 +1306,7 @@ function appFactory() {
   // GET /health — data integrity self-check
   app.get('/health', function(req, res) {
     const sources = scanSources();
-    const VALID_TIERS = ['S', 'A', 'block'];
+    const VALID_TIERS = ['S', 'A', 'X'];
     const VALID_TYPES = ['权威源', '聚合源', '平台', '社区', 'AI原生'];
 
     const checks = [];
