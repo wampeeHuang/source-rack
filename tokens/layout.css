@@ -1,0 +1,85 @@
+/* ═══════════════════════════════════════════════════════════════════
+   LAYOUT TOKENS — source-rack 专属布局层
+   真相源: 本文件。每个应用自己定义布局 token。
+   品牌基因从 tokens/brand.css 继承，本文件只定义布局规则。
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── 字号刻度 — 数据工具专用（比画廊营销页面小一号） ── */
+  --text-xs: 10px;       /* 标签/辅助信息 */
+  --text-sm: 12px;       /* 表格元数据 */
+  --text-base: 13px;     /* 正文/表格行 */
+  --text-lg: 15px;       /* 区段标题 */
+  --text-xl: 18px;       /* 页面标题 */
+  --text-2xl: 22px;      /* Header 标题 */
+
+  /* ── 间距系统 — 紧凑数据布局 ── */
+  --space-2xs: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+  --space-3xl: 48px;
+
+  /* ── 页面结构 ── */
+  --page-max-w: 1400px;          /* 最大内容宽（数据面板比营销页窄） */
+  --page-pad-x: 24px;            /* 页面水平内边距 */
+  --header-h: 48px;              /* 顶部栏高度 */
+  --footer-h: auto;              /* 底部栏高度（内容驱动） */
+
+  /* ── 筛选栏 ── */
+  --filter-gap: 8px;             /* 芯片间距 */
+  --filter-group-gap: 16px;      /* 筛选组间距 */
+  --filter-label-w: 48px;        /* 筛选标签宽度 */
+  --chip-h: 28px;                /* 芯片高度 */
+  --chip-px: 10px;               /* 芯片水平内边距 */
+  --chip-font: 12px;             /* 芯片字号 */
+  --chip-radius: var(--radius-pill);  /* 芯片圆角（继承品牌） */
+
+  /* ── 数据表格 ── */
+  --table-row-h: 36px;           /* 行高 */
+  --table-col-gap: 12px;         /* 列间距 */
+  --table-header-h: 32px;        /* 表头高度 */
+  --table-border: 1px solid var(--color-outline-variant);
+
+  /* ── 右侧抽屉面板 ── */
+  --drawer-w: 380px;             /* 抽屉宽度 */
+  --drawer-pad: 24px;            /* 抽屉内边距 */
+  --drawer-backdrop: rgba(0, 0, 0, 0.3);
+
+  /* ── Header ── */
+  --header-logo-gap: 10px;       /* Logo 与标题间距 */
+  --header-status-gap: 16px;     /* 状态指示器间距 */
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   组件 token（从上述 token 派生，组件内直接用这些）
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* 筛选栏 */
+  --filter-bar-padding: var(--space-md) 0;
+  --filter-group-label: {
+    font-size: var(--text-xs);
+    color: var(--color-on-surface-variant);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  };
+
+  /* 表格行 */
+  --table-cell-padding: var(--space-sm) var(--space-md);
+  --table-row-hover: var(--color-surface-container-low);
+
+  /* 状态指示 */
+  --status-ok: var(--color-success);
+  --status-warn: #d97757;
+  --status-error: var(--color-error);
+
+  /* 档位色彩 */
+  --tier-s-color: var(--color-primary);
+  --tier-a-color: var(--color-on-surface-variant);
+  --tier-x-color: var(--color-error);
+}

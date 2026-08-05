@@ -1,0 +1,42 @@
+/* ═══════════════════════════════════════════════════════════════════
+   BRAND TOKENS — 品牌基因层
+   真相源: D:\workspace\layout-gallery\templates\layout-gallery\brand.json
+   本文件是投影，不是真相源。修改品牌基因请在画廊改，然后同步到此处。
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Color — MD3 色板, 13 色 ── */
+  --color-primary: #3D6B4A;              /* 鼠尾草绿 — 唯一强调色 */
+  --color-secondary: #71717A;            /* 辅强调色 */
+  --color-primary-container: #EEF4EF;    /* 强调色 10% 淡底 */
+  --color-surface: #FFFFFF;              /* 页面背景白 */
+  --color-surface-container-low: #F4F4F5;  /* 卡片灰底 */
+  --color-surface-container-high: #E4E4E7; /* 代码块深底 */
+  --color-on-surface: #18181B;           /* 主文字墨色 · AAA */
+  --color-on-surface-variant: #52525B;   /* 次级文字 · AA */
+  --color-outline: #D4D4D8;             /* 边框/分割线 */
+  --color-outline-variant: #E8E8EC;      /* 浅边框 */
+  --color-success: #059669;              /* 成功/已复制 */
+  --color-error: #dc2626;               /* 错误/危险 */
+  --heading: #18181B;                    /* 标题墨色 */
+
+  /* ── Typography — 3 族 ── */
+  --font-display: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", serif;
+  --font-body: "Noto Sans SC", "Inter", "Segoe UI", "Helvetica Neue", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+  --font-mono: "SF Mono", "Consolas", "Cascadia Code", "IBM Plex Mono", ui-monospace, monospace;
+
+  /* ── Motion — 4 级 ── */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 140ms;
+  --duration-base: 200ms;
+  --duration-slow: 350ms;
+
+  /* ── Shadow — 2 级 ── */
+  --elevation-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --elevation-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+
+  /* ── Radius — 3 级 ── */
+  --radius-base: 0px;                    /* 卡片直角 — 方正简洁 */
+  --radius-sm: 3px;                      /* 按钮/代码块 */
+  --radius-pill: 9999px;                 /* 标签/眉题胶囊 */
+}

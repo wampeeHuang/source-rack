@@ -2,8 +2,32 @@
 
 数据目录：`D:/Obsidian/wiki/entities/sources/`，一个 `.md` 一个源。
 Web 面板：http://localhost:3098
+品牌套件：[D:\workspace\layout-gallery\templates\layout-gallery\brand.json](D:\workspace\layout-gallery\templates\layout-gallery\brand.json)
 
 **审查机制**: `_review/` 目录存在时，先读 `_review/brief.md` 了解待审内容，反馈写入 `_review/findings.md`。
+
+## 品牌套件
+
+本应用是一套个人品牌的一部分。品牌基因由版式画廊定义，所有应用共享。
+
+### Token 架构
+
+```
+品牌基因（layout-gallery/brand.json）    ← 唯一真相源
+  └→ tokens/brand.css                   ← 投影，勿直接改
+      颜色 13 · 字体 3 · 动效 4 · 阴影 2 · 圆角 3
+
+布局规则（tokens/layout.css）            ← 本应用真相源
+  字号 6 · 间距 9 · 页面结构 · 组件尺寸
+```
+
+**铁律：品牌基因共享，布局各自定义。** 改颜色/字体/圆角去画廊改完同步过来。改间距/字号/组件尺寸在本项目改。
+
+### 品牌一致性质控
+
+- 组件 CSS 只引用 token 变量，不写裸值（`var(--color-primary)` 不是 `#3D6B4A`）
+- 新 token 需求：品牌级往画廊提，布局级在本项目 `tokens/layout.css` 加
+- 画廊品牌基因更新后 → 手动同步到 `tokens/brand.css` → 重启服务器
 
 ## 收录标准
 
@@ -184,7 +208,8 @@ http://localhost:3098
 2. **分类先于列举** — 两级领域 + 类型 + 档位，框架先于内容
 3. **策展即权力** — 不加 why 不收，不策展等于没有
 4. **生长 > 归档** — 系统价值 = 策展增量，不 = 文件数量
-5. **优胜劣汰** — 不用的沉底，404 的淘汰。有生长就有代谢，只进不出是垃圾场
+5. **优胜劣汰** — 不用的沉底，404 的淘汰
+6. **品牌基因共享，布局各自定义** — 颜色字体圆角阴影动效从画廊同步。间距字号组件尺寸本项目自管。组件只写 var(--token)，不写裸值
 
 ## 维护规则（踩坑记录）
 
