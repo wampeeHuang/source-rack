@@ -325,6 +325,50 @@ DOMAINS_TO_CHECK.forEach(function(d) {
   assert(d + ' 芯片数字=' + filterCount + ' (过滤结果数)', ok);
 });
 
+// ── §12 PRIMARY_HINT_SECONDARY 推断 ──
+hdr('§12 旧一级标签推断二级');
+
+// 设计类: 建筑/室内设计/家居生活/景观 → 各自二级
+var hintTests = [
+  { domains: ['建筑', '设计'], expected: '建筑与景观', desc: '建筑→建筑与景观' },
+  { domains: ['室内设计', '家居生活'], expected: '室内与家居', desc: '室内设计→室内与家居' },
+  { domains: ['景观', '设计'], expected: '建筑与景观', desc: '景观→建筑与景观' },
+  { domains: ['前端', 'UI组件'], expected: 'UI/UX', desc: '前端→UI/UX' },
+  { domains: ['开发', '技术问答'], expected: '技术社区', desc: '开发+技术问答→技术社区' },
+  { domains: ['AI', '代码'], expected: '代码托管', desc: '代码(AI primary)→代码托管(registry命中)' },
+  { domains: ['工具', '设计工具'], expected: '设计工具', desc: '工具→效率工具(不匹配)，设计工具直接命中' },
+  { domains: ['AI', '社区'], expected: '社交平台', desc: '社区→社交平台' },
+  { domains: ['媒体', '资讯'], expected: '资讯', desc: '媒体→资讯(内容平台)' },
+  { domains: ['AI', '工具'], expected: '效率工具', desc: '工具→效率工具(AI primary)' },
+  { domains: ['AI', 'API'], expected: 'API', desc: 'API(AI primary)→API' },
+  { domains: ['搜索', 'AI'], expected: '通用搜索', desc: '搜索→通用搜索' },
+  { domains: ['产品', 'AI'], expected: '变现', desc: '产品→变现' },
+  { domains: ['写作', '博客'], expected: '教程课程', desc: '写作→教程课程' },
+  { domains: ['学习', 'AI'], expected: '学习资源', desc: '学习→学习资源' },
+  { domains: ['参考', '设计参考'], expected: '设计灵感', desc: '参考→设计灵感' },
+  { domains: ['工具', 'IP管理'], expected: '云服务', desc: 'IP管理→云服务' },
+  // 纯 hint 路径（无 legacySecondary 可用时从 legacyPrimary 推断）
+  { domains: ['AI', '社区', '媒体'], expected: '社交平台', desc: '纯hint: AI+社区→社交平台(无legacySecondary)' },
+];
+hintTests.forEach(function(t) {
+  var nd = normalizeDomains(t.domains, t.desc, 'https://test.com');
+  assert(t.desc + ' secondary=' + t.expected, nd.secondary === t.expected);
+});
+
+// ── §13 二级全覆盖（除空 domains） ──
+hdr('§13 所有 source 二级≠未细分');
+
+sources.forEach(function(s) {
+  var nd = normalizeDomains(s.domains, s.title, s.url);
+  if (s.domains && s.domains.length > 0) {
+    assert(s.file + ' 有二级标签', nd.secondary !== '未细分');
+  }
+});
+
+// 空 domains → 未细分 是期望行为
+var emptyNd2 = normalizeDomains([], '空', 'https://x.com');
+assert('空 domains secondary=未细分', emptyNd2.secondary === '未细分');
+
 
 console.log('\n══════════════════════════════════════════');
 var total = passed + failed;
