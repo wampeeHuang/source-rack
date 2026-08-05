@@ -3,6 +3,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const { PRIMARY_ORDER, PRIMARY_ICONS, PRIMARY_TIPS, normalizeDomains, getValidSecondaries, isValidPrimary } = require('./domain-registry');
 
 const PORT = parseInt(process.env.PORT || '3098', 10);
 const SOURCES_DIR = process.env.SOURCES_DIR || 'D:/Obsidian/wiki/entities/sources';
@@ -53,6 +54,11 @@ function scanSources() {
     // Algorithm-driven tier: override takes precedence, else compute from usage
     src._stored_tier = src.tier; // preserve what's on disk
     src.tier = computeTier(src);
+    // Normalize domains to new 7-primary classification
+    var nd = normalizeDomains(src.domains || [], src.title, src.url);
+    src._primary = nd.primary;
+    src._secondary = nd.secondary;
+    src._crossTags = nd.crossTags;
     return src;
   });
 }
@@ -97,9 +103,6 @@ const HTML = `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>信息源管理 — Source Rack</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='18' width='5' height='10' rx='1' fill='%23002FA7'/%3E%3Crect x='13.5' y='10' width='5' height='18' rx='1' fill='%23002FA7'/%3E%3Crect x='23' y='4' width='5' height='24' rx='1' fill='%23002FA7'/%3E%3Ccircle cx='6.5' cy='6' r='2.5' fill='%23002FA7' opacity='.35'/%3E%3Ccircle cx='16' cy='6' r='2.5' fill='%23002FA7' opacity='.55'/%3E%3Ccircle cx='25.5' cy='6' r='2.5' fill='%23002FA7' opacity='.75'/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&family=Noto+Sans+SC:wght@200;300;400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
     /* Warm ivory + clay — aligned with minds.evopearl.com */
@@ -566,7 +569,7 @@ function setDomain(d) {
   if (clicked) clicked.classList.add('active');
   // Show 二级 row when a 一级 is selected, show only relevant sub-chips
   var subChips = document.querySelectorAll('.sub-chip');
-  var TOP_DOMAINS = ['AI','设计','电商','工具','开发','前端','产品','写作','学习','社区','媒体','参考','搜索'];
+  var TOP_DOMAINS = ['AI','设计','电商','开发工具','内容平台','商业','知识库'];
   var subRow = document.getElementById('subDomainRow');
   if (d === 'all') {
     subChips.forEach(function(c) { c.style.display = 'none'; });
@@ -636,30 +639,8 @@ function applyFilters() {
   var el = document.getElementById('countDisplay');
   if (el) el.textContent = visible + ' / SOURCES_PLACEHOLDER_COUNT';
 
-  // Update chip badge counts to reflect visible (filtered) set
-  var tierAcc = {}, typeAcc = {};
-  document.querySelectorAll('.row:not(.hidden)').forEach(function(r) {
-    var t = r.dataset.tier, tp = r.dataset.type;
-    if (t) tierAcc[t] = (tierAcc[t] || 0) + 1;
-    if (tp) typeAcc[tp] = (typeAcc[tp] || 0) + 1;
-  });
-  document.querySelectorAll('.chip[data-tier]:not([data-tier="all"])').forEach(function(c) {
-    var strong = c.querySelector('strong');
-    if (strong) strong.textContent = tierAcc[c.dataset.tier] || 0;
-  });
-  document.querySelectorAll('.chip[data-type]:not([data-type="all"])').forEach(function(c) {
-    var strong = c.querySelector('strong');
-    if (strong) strong.textContent = typeAcc[c.dataset.type] || 0;
-  });
-  // Also update domain chip counts from visible rows
-  var domainAcc = {};
-  document.querySelectorAll('.row:not(.hidden)').forEach(function(r) {
-    (r.dataset.domain || '').split(' ').forEach(function(d) { if (d) domainAcc[d] = (domainAcc[d] || 0) + 1; });
-  });
-  document.querySelectorAll('.chip[data-domain]:not([data-domain="all"])').forEach(function(c) {
-    var strong = c.querySelector('strong');
-    if (strong) strong.textContent = domainAcc[c.dataset.domain] || 0;
-  });
+  // Tier, type, and domain chip counts all stay at server-rendered global totals.
+  // Only the visible row count changes with filtering.
 }
 document.addEventListener('DOMContentLoaded', function() {
   var el = document.getElementById('countDisplay');
@@ -701,12 +682,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Dot color + status text (user-facing, with AI invocation hint)
+    statusEl.textContent = '';
     if (gateBreaks > 0) {
       dot.classList.add('red');
-      statusEl.innerHTML = '<span class="cmd">对AI说「修闸门」</span> — ' + gateBreaks + ' 处受损';
+      var cmd = document.createElement('span'); cmd.className = 'cmd'; cmd.textContent = '对AI说「修闸门」';
+      statusEl.appendChild(cmd); statusEl.appendChild(document.createTextNode(' — ' + gateBreaks + ' 处受损'));
     } else if (warnings > 0) {
       dot.classList.add('yellow');
-      statusEl.innerHTML = '<span class="cmd">对AI说「标准化」</span> — ' + warnings + ' 处缺漏';
+      var cmd = document.createElement('span'); cmd.className = 'cmd'; cmd.textContent = '对AI说「标准化」';
+      statusEl.appendChild(cmd); statusEl.appendChild(document.createTextNode(' — ' + warnings + ' 处缺漏'));
     } else {
       dot.classList.add('green');
       statusEl.textContent = total + ' 源 · 唯一真相源自洽';
@@ -714,18 +698,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Build checklist
     if (checksList) {
-      var html = '';
+      checksList.textContent = '';
       allChecks.forEach(function(c) {
-        var cls = c.pass ? 'pass' : 'fail';
-        var icon = c.pass ? '✓' : '✗';
-        html += '<li class="' + cls + '">' + icon + ' ' + c.label + '：' + c.detail + '</li>';
+        var li = document.createElement('li');
+        li.className = c.pass ? 'pass' : 'fail';
+        li.textContent = (c.pass ? '✓' : '✗') + ' ' + c.label + '：' + c.detail;
+        checksList.appendChild(li);
       });
-      html += '<li class="health-legend">';
-      html += '<b class="hl-red">●</b> 源架受损（重复URL / 缺URL / 非法值）→ <span class="say">对AI说「修闸门」</span><br>';
-      html += '<b class="hl-yellow">●</b> 元数据不全（缺档位 / 缺类型 / 缺领域）→ <span class="say">对AI说「标准化」</span><br>';
-      html += '<b class="hl-green">●</b> 唯一真相源自洽，无需操作';
-      html += '</li>';
-      checksList.innerHTML = html;
+      var legend = document.createElement('li'); legend.className = 'health-legend';
+      legend.innerHTML = '<b class="hl-red">●</b> 源架受损（重复URL / 缺URL / 非法值）→ <span class="say">对AI说「修闸门」</span><br>' +
+        '<b class="hl-yellow">●</b> 元数据不全（缺档位 / 缺类型 / 缺领域）→ <span class="say">对AI说「标准化」</span><br>' +
+        '<b class="hl-green">●</b> 唯一真相源自洽，无需操作';
+      checksList.appendChild(legend);
     }
   }).catch(function(err) {
     dot.classList.remove('loading');
@@ -787,123 +771,49 @@ const SOURCES_DIR = '${SOURCES_DIR.replace(/\\/g, '\\\\')}';
 const TIER_ORDER = { S:0, A:1, X:2 };
 `;
 
-// ─── Auto-assign secondary domains ───
-const TOP_DOMAINS = ['AI','设计','电商','工具','开发','前端','产品','写作','学习','社区','媒体','参考','搜索'];
+// ─── Auto-assign secondary domains (new 7-primary system) ───
+const TOP_DOMAINS = PRIMARY_ORDER;
 const topSet = new Set(TOP_DOMAINS);
-const AI_PRIORITY = {'语音':10,'视频生成':10,'图像生成':10,'3D':10,'Agent':8,'LLM':8,'代码':6,'API':5,'开发平台':5,'学习资源':3,'资讯':3,'论文':3,'通用搜索':3,'技术社区':1,'自动化':1};
-
-function guessAISecondary(url, title) {
-  var t = (title + ' ' + url).toLowerCase();
-  if (/agent|a2a|agent2agent|mcp|coze|manus/.test(t)) return 'Agent';
-  if (/midjourney|stable.diffusion|dall.e|recraft|comfyui|image|图片|绘画|插画|生成.*图|图.*生成|civitai|krea|leonardo|lovart|faces|即梦|jimeng/.test(t)) return '图像生成';
-  if (/sora|runway|video|视频|可灵|kling|pixverse|生成.*视频|花生|剪辑/.test(t)) return '视频生成';
-  if (/tts|elevenlabs|speech|voice|语音|数字人|suno|音乐|udio|cosyvoice|豆包语音|yueai|tianyin|天音/.test(t)) return '语音';
-  if (/3d|tripo|meshy|三维|模型.*生成/.test(t)) return '3D';
-  if (/api|platform|开发|key|token|sdk|console|开放平台|开发者|aistudio|bigmodel|coze|stepone/.test(t)) return '开发平台';
-  if (/paper|arxiv|论文|research|huggingface.*paper/.test(t)) return '论文';
-  if (/news|日报|热榜|trending|量子位|机器之心|aihot|techcrunch|techmeme|venturebeat|siliconangle|geekwire|marktechpost|theneuron|aimagazine|superhuman/.test(t)) return '资讯';
-  if (/course|tutorial|教程|课程|learn|学习|专栏|手册|修炼|指南|docs|notebooklm|gist|aigcreative/.test(t)) return '学习资源';
-  if (/llm|gpt|claude|gemini|model|模型|chatgpt|openai|anthropic|deepseek|kimi|qwen|千问|minimax|智谱|bigmodel|openrouter|聚合|monica|x\.ai|xai|perplexity|aimaxhug|葫芦|anygen/.test(t)) return 'LLM';
-  if (/code|编程|github|gitlab|npm|开源|cursor|claude.code|vscode|visual.studio|aider|vercel|v0/.test(t)) return '代码';
-  if (/tailscale|wsl|vpn|网络|cloudfront/.test(t)) return '开发平台';
-  return null;
-}
 
 function autoAssignSecondaries(domains, url, title) {
-  var result = domains.slice();
-  var combined = (title + ' ' + url).toLowerCase();
-  if (result.indexOf('AI') >= 0) { var s = guessAISecondary(url, title); if (s && result.indexOf(s) < 0) result.push(s); }
-  if (result.indexOf('设计') >= 0) {
-    if (/awwward|behance|pinterest|dribbble|inspiration|灵感|站酷|zcool|agent002|artofthetitle|illustration|插画/.test(combined) && result.indexOf('设计灵感') < 0) result.push('设计灵感');
-    else if (/谷德|gooood|archdaily|室内|interior|yellowtrace|知末|awhouse|barragan|巴拉干/.test(combined) && result.indexOf('室内设计') < 0) result.push('室内设计');
-    else if (/3d66|3d.*素材|三维.*素材|模型.*素材/.test(combined) && result.indexOf('3D素材') < 0) result.push('3D素材');
-    else if (/html5.*up|tooplate|template|模板|v0|vercel.*v0/.test(combined) && result.indexOf('网页设计') < 0) result.push('网页设计');
-    else if (/mobbin|ios.*app|ui.*kit/.test(combined) && result.indexOf('UI/UX') < 0) result.push('UI/UX');
-    else if (/coolors|color|色彩|配色|palette/.test(combined) && result.indexOf('色彩工具') < 0) result.push('色彩工具');
-    else if (/font|字体|typeface|google.*font/.test(combined) && result.indexOf('字体素材') < 0) result.push('字体素材');
-    else if (/shadowlibrary|安娜|档案|archive/.test(combined) && result.indexOf('图书档案') < 0) result.push('图书档案');
-    else if (/designkit|美图|电商.*图|listing/.test(combined) && result.indexOf('电商工具') < 0) result.push('电商工具');
+  var nd = normalizeDomains(domains, title, url);
+  var result = [nd.primary];
+  if (nd.secondary && nd.secondary !== '未细分') result.push(nd.secondary);
+  result = result.concat(nd.crossTags);
+  // Keep legacy secondary tags that aren't in new word list
+  for (var i = 0; i < domains.length; i++) {
+    if (!topSet.has(domains[i]) && result.indexOf(domains[i]) < 0) {
+      result.push(domains[i]);
+    }
   }
-  if (result.indexOf('电商') >= 0) {
-    if (/temu|1688|淘宝|taobao|京东|jd|国内|天猫|微信小店|store\.weixin/.test(combined) && result.indexOf('国内电商') < 0) result.push('国内电商');
-    else if (/amazon|ebay|aliexpress|shopee|lazada|跨境|独立站|shoplazza/.test(combined) && result.indexOf('跨境电商') < 0) result.push('跨境电商');
-    else if (/linkfox|选品/.test(combined) && result.indexOf('选品工具') < 0) result.push('选品工具');
-  }
-  if (result.indexOf('工具') >= 0) {
-    if (/deepl|translate|翻译|google.*翻译/.test(combined) && result.indexOf('翻译工具') < 0) result.push('翻译工具');
-    else if (/drive|网盘|onedrive|dropbox|存储/.test(combined) && result.indexOf('存储网盘') < 0) result.push('存储网盘');
-    else if (/快递|物流|ship/.test(combined) && result.indexOf('快递物流') < 0) result.push('快递物流');
-    else if (/adobe|express|设计.*工具/.test(combined) && result.indexOf('设计工具') < 0) result.push('设计工具');
-    else if (/pdf|compress|压缩/.test(combined) && result.indexOf('文件处理') < 0) result.push('文件处理');
-    else if (/mail|gmail|邮箱|qq.*邮箱/.test(combined) && result.indexOf('邮箱') < 0) result.push('邮箱');
-    else if (/flomo|memo|笔记|知识|karakeep|书签/.test(combined) && result.indexOf('知识管理') < 0) result.push('知识管理');
-    else if (/n8n|workflow|automation|5678/.test(combined) && result.indexOf('自动化') < 0) result.push('自动化');
-    else if (/api|接口/.test(combined) && result.indexOf('API') < 0) result.push('API');
-    else if (/music|音频|ace.step|生成.*音乐/.test(combined) && result.indexOf('AI工具') < 0) result.push('AI工具');
-  }
-  if (result.indexOf('社区') >= 0) {
-    if (/bilibili|抖音|tiktok|instagram|facebook|youtube|lofter|即刻|okjike|reddit|x\.com|twitter|xiaohongshu|小红书/.test(combined) && result.indexOf('社交平台') < 0) result.push('社交平台');
-    else if (/v2ex|discord|stackoverflow|hacker.?news|reddit|linux\.do/.test(combined) && result.indexOf('技术社区') < 0) result.push('技术社区');
-    else if (/豆瓣|知乎|今日头条|少数派|sspai|toutiao/.test(combined) && result.indexOf('内容平台') < 0) result.push('内容平台');
-    else if (/kol|达人|创作者|afdian/.test(combined) && result.indexOf('创作者平台') < 0) result.push('创作者平台');
-  }
-  if (result.indexOf('媒体') >= 0) {
-    if (/news|日报|热榜|资讯|techcrunch|readhub|newrank|新榜/.test(combined) && result.indexOf('资讯') < 0) result.push('资讯');
-    else if (/创作中心|creator|创作者|头条号|百家号|视频号|喜马拉雅|bilibili.*upload|cool\.bilibili|open\.bilibili/.test(combined) && result.indexOf('创作者平台') < 0) result.push('创作者平台');
-    else if (/小说|novel|文学|起点|晋江|番茄.*小说|qidian|jjwxc/.test(combined) && result.indexOf('文学平台') < 0) result.push('文学平台');
-    else if (/figma|canva|strikingly|建站|网站.*建立/.test(combined) && result.indexOf('创作工具') < 0) result.push('创作工具');
-    else if (/adsense|advertising|广告/.test(combined) && result.indexOf('广告平台') < 0) result.push('广告平台');
-    else if (/zhihu.*write|知乎.*写|zhuanlan/.test(combined) && result.indexOf('内容平台') < 0) result.push('内容平台');
-    else if (/x\.com|twitter|youtube|xiaohongshu|小红书|bilibili|哔哩/.test(combined) && result.indexOf('社交平台') < 0) result.push('社交平台');
-  }
-  if (result.indexOf('产品') >= 0) {
-    if (/kickstarter|indiegogo|众筹|modian|摩点|gofundme/.test(combined) && result.indexOf('众筹平台') < 0) result.push('众筹平台');
-    else if (/patreon|afdian|爱发电|面包多|gumroad|知识星球|zsxq/.test(combined) && result.indexOf('创作者变现') < 0) result.push('创作者变现');
-    else if (/数字藏品|nft|鲸探/.test(combined) && result.indexOf('数字藏品') < 0) result.push('数字藏品');
-  }
-  if (result.indexOf('参考') >= 0) {
-    if (/arxiv|paper|论文|万方|huggingface.*paper|research/.test(combined) && result.indexOf('学术论文') < 0) result.push('学术论文');
-    else if (/book|图书|gutenberg|古腾堡|电子书|yabook/.test(combined) && result.indexOf('图书档案') < 0) result.push('图书档案');
-    else if (/austinkleon|创意行为/.test(combined) && result.indexOf('设计参考') < 0) result.push('设计参考');
-  }
-  if (result.indexOf('开发') >= 0) {
-    if (/github|gitlab|git\b/.test(combined) && result.indexOf('代码托管') < 0) result.push('代码托管');
-    else if (/stackoverflow|csdn|segmentfault/.test(combined) && result.indexOf('技术问答') < 0) result.push('技术问答');
-    else if (/npm|packagist|pypi/.test(combined) && result.indexOf('包管理') < 0) result.push('包管理');
-    else if (/open\.douyin|open\.feishu|开放平台|developer/.test(combined) && result.indexOf('开发平台') < 0) result.push('开发平台');
-  }
-  if (result.indexOf('前端') >= 0) {
-    if (/mdn|docs|文档|reference/.test(combined) && result.indexOf('文档参考') < 0) result.push('文档参考');
-    else if (/vercel|deploy|部署/.test(combined) && result.indexOf('部署平台') < 0) result.push('部署平台');
-    else if (/blackcamellia|localhost|个人|portfolio/.test(combined) && result.indexOf('个人站点') < 0) result.push('个人站点');
-    else if (/music|ai.*music|音频.*生成/.test(combined) && result.indexOf('AI工具') < 0) result.push('AI工具');
-    else if (/21st|component|ui.*kit|组件/.test(combined) && result.indexOf('UI组件') < 0) result.push('UI组件');
-  }
-  if (result.indexOf('学习') >= 0) {
-    if (/course|课程|tutorial|教程/.test(combined) && result.indexOf('教程课程') < 0) result.push('教程课程');
-    else if (/docs|文档|手册|guide|context7/.test(combined) && result.indexOf('文档手册') < 0) result.push('文档手册');
-    else if (/opencli|cli/.test(combined) && result.indexOf('文档手册') < 0) result.push('文档手册');
-  }
-  if (result.indexOf('搜索') >= 0) {
-    if (/google|bing|baidu|百度|perplexity|搜索/.test(combined) && result.indexOf('通用搜索') < 0) result.push('通用搜索');
-  }
-  if (result.indexOf('写作') >= 0) {
-    if (/paulgraham|博客|blog/.test(combined) && result.indexOf('博客') < 0) result.push('博客');
-    else if (/女娲|蒸馏|目录|思维顾问/.test(combined) && result.indexOf('文档手册') < 0) result.push('文档手册');
-  }
-  // Deduplicate
-  var seen = new Set();
-  return result.filter(function(d) { if (seen.has(d)) return false; seen.add(d); return true; });
+  return result;
 }
 
 function appFactory() {
   const app = express();
+  app.disable('x-powered-by');
   app.use(express.json());
+
+  // CSP: allow inline scripts & styles (current architecture), block everything else
+  app.use(function(req, res, next) {
+    res.set('Content-Security-Policy',
+      "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline'; " +
+      "style-src 'self' 'unsafe-inline'; " +
+      "img-src 'self' data: https:; " +
+      "connect-src 'self'; " +
+      "font-src 'self' data:; " +
+      "frame-ancestors 'none'; " +
+      "base-uri 'self'; " +
+      "form-action 'self'"
+    );
+    next();
+  });
 
   // POST /sources — add a new source
   app.post('/sources', function(req, res) {
     const VALID_TIERS = ['S', 'A', 'X'];
-    const VALID_TYPES = ['权威源', '聚合源', '平台', '社区', 'AI原生'];
+    const VALID_TYPES = ['权威源', '聚合源', '平台', '社区', 'AI原生', '工具', '模板库', '工具站'];
 
     const b = req.body;
     var errors = [];
@@ -1099,69 +1009,47 @@ function appFactory() {
       if (!s.domains) s.domains = [];
     });
 
-    // Build domain chips — dynamic from actual data
+    // Build domain chips — from normalized _primary / _secondary
     const domainCounts = {};
-    const DOMAIN_ORDER = ['AI', '设计', '电商', '工具', '开发', '前端', '产品', '写作', '学习', '社区', '媒体', '参考', '搜索'];
-    const topDomains = new Set(DOMAIN_ORDER);
+    const secondaryCounts = {};
+    const secondaryParents = {}; // secondary → { primary: count }
     sources.forEach(function(s) {
-      (s.domains || []).forEach(function(d) { domainCounts[d] = (domainCounts[d] || 0) + 1; });
-    });
-    // Derive parent-child counts: sub-domain → { parent: count }
-    const subParents = {};       // { parent1: true, parent2: true } — used for visibility
-    const subParentCounts = {};  // { parent1: n1, parent2: n2 } — used for per-primary chip count
-    sources.forEach(function(s) {
-      const doms = s.domains || [];
-      doms.forEach(function(sub) {
-        if (!topDomains.has(sub)) {
-          doms.forEach(function(top) {
-            if (topDomains.has(top) && top !== sub) {
-              if (!subParents[sub]) { subParents[sub] = {}; subParentCounts[sub] = {}; }
-              subParents[sub][top] = true;
-              subParentCounts[sub][top] = (subParentCounts[sub][top] || 0) + 1;
-            }
-          });
-        }
-      });
+      var p = s._primary || '未分类';
+      domainCounts[p] = (domainCounts[p] || 0) + 1;
+      // crossTags also count toward their respective primary chip numbers,
+      // matching the filter behavior where clicking a domain chip matches
+      // crossTags in data-domain as well.
+      var tags = s._crossTags || [];
+      for (var i = 0; i < tags.length; i++) {
+        domainCounts[tags[i]] = (domainCounts[tags[i]] || 0) + 1;
+      }
+      var sec = s._secondary || '未细分';
+      if (sec !== '未细分') {
+        secondaryCounts[sec] = (secondaryCounts[sec] || 0) + 1;
+        if (!secondaryParents[sec]) secondaryParents[sec] = {};
+        secondaryParents[sec][p] = (secondaryParents[sec][p] || 0) + 1;
+      }
     });
 
-    const domainTips = {
-      'AI': '人工智能 · LLM、Agent、图像/视频/语音/3D 生成',
-      '设计': '视觉设计 · 字体、UI/UX、室内设计、品牌',
-      '电商': '电子商务 · 跨境电商、独立站、平台运营',
-      '工具': '效率工具 · 开发工具、自动化、数据分析',
-      '开发': '软件开发 · 后端、架构、基础设施',
-      '前端': '前端开发 · HTML/CSS/JS、框架、工程化',
-      '产品': '产品管理 · 需求、增长、用户体验',
-      '写作': '内容写作 · 技术写作、文案、出版',
-      '学习': '学习资源 · 课程、教程、文档',
-      '社区': '技术社区 · 论坛、问答、开源社区',
-      '媒体': '科技媒体 · 新闻、评论、行业分析',
-      '参考': '参考资源 · 文档、规范、速查表',
-      '搜索': '搜索引擎 · 通用搜索、垂直搜索',
-      '商业': '商业管理 · 创业、营销、财务',
-    };
+    const DOMAIN_ORDER = PRIMARY_ORDER;
+    const topDomains = new Set(DOMAIN_ORDER);
+
+    const domainTips = PRIMARY_TIPS;
+
     // ─── Domain icons (inline SVG, 14×14, stroke=currentColor) ───
-    const DOMAIN_ICONS = {
-      'AI': '<svg width="14" height="14" viewBox="0 0 14 14"><polygon points="7,0.5 13.5,7 7,13.5 0.5,7" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
-      '设计': '<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
-      '电商': '<svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" rx="1"/><line x1="4" y1="7" x2="10" y2="7" stroke="currentColor" stroke-width="1"/></svg>',
-      '工具': '<svg width="14" height="14" viewBox="0 0 14 14"><polygon points="7,0.5 13,5 13,13 1,13 1,5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="7" cy="8" r="1.8" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>',
-      '开发': '<svg width="14" height="14" viewBox="0 0 14 14"><path d="M5,3 L1.5,7 L5,11 M9,3 L12.5,7 L9,11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-      '前端': '<svg width="14" height="14" viewBox="0 0 14 14"><rect x="0.5" y="2" width="13" height="10" fill="none" stroke="currentColor" stroke-width="1.5" rx="1"/><line x1="0.5" y1="5.5" x2="13.5" y2="5.5" stroke="currentColor" stroke-width="1"/><circle cx="7" cy="2" r="1.5" fill="currentColor"/></svg>',
-      '产品': '<svg width="14" height="14" viewBox="0 0 14 14"><polygon points="7,0.5 12.5,4 12.5,10 7,13.5 1.5,10 1.5,4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
-      '写作': '<svg width="14" height="14" viewBox="0 0 14 14"><line x1="1.5" y1="3" x2="12.5" y2="3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="1.5" y1="7" x2="12.5" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="1.5" y1="11" x2="8.5" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
-      '学习': '<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="7" cy="7" r="2" fill="currentColor"/></svg>',
-      '社区': '<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="4" cy="4.5" r="2" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="10" cy="4.5" r="2" fill="none" stroke="currentColor" stroke-width="1.2"/><line x1="2" y1="11" x2="7" y2="7.5" stroke="currentColor" stroke-width="1.2"/><line x1="12" y1="11" x2="7" y2="7.5" stroke="currentColor" stroke-width="1.2"/><line x1="2" y1="13" x2="12" y2="13" stroke="currentColor" stroke-width="1.2"/></svg>',
-      '媒体': '<svg width="14" height="14" viewBox="0 0 14 14"><polygon points="3,1.5 3,12.5 11.5,7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
-      '参考': '<svg width="14" height="14" viewBox="0 0 14 14"><rect x="2" y="0.5" width="10" height="13" fill="none" stroke="currentColor" stroke-width="1.5" rx="1"/><line x1="4.5" y1="4" x2="10" y2="4" stroke="currentColor" stroke-width="1"/><line x1="4.5" y1="7" x2="10" y2="7" stroke="currentColor" stroke-width="1"/></svg>',
-      '搜索': '<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="5.5" cy="5.5" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="9" y1="9" x2="13" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
-    };
+    const DOMAIN_ICONS = {};
+    for (var di = 0; di < PRIMARY_ORDER.length; di++) {
+      DOMAIN_ICONS[PRIMARY_ORDER[di]] = PRIMARY_ICONS[PRIMARY_ORDER[di]] || '';
+    }
+
     function domainIcon(d) {
       if (DOMAIN_ICONS[d]) return '<span class="domain-icon">' + DOMAIN_ICONS[d] + '</span>';
       // Secondary: inherit icon from first parent primary
-      var parents = subParents[d];
+      var parents = secondaryParents[d];
       if (parents) {
-        for (var p of DOMAIN_ORDER) { if (parents[p]) return '<span class="domain-icon">' + DOMAIN_ICONS[p] + '</span>'; }
+        for (var pi = 0; pi < PRIMARY_ORDER.length; pi++) {
+          if (parents[PRIMARY_ORDER[pi]]) return '<span class="domain-icon">' + DOMAIN_ICONS[PRIMARY_ORDER[pi]] + '</span>';
+        }
       }
       return '';
     }
@@ -1175,17 +1063,16 @@ function appFactory() {
       topChipsHTML += '<span class="chip' + dim + '" data-domain="' + esc(d) + '" onclick="setDomain(\'' + esc(d) + '\')"' + (tip ? ' data-tip="' + esc(tip) + '"' : '') + '>' + icon + esc(d) + ' <strong>' + n + '</strong></span>\n';
     });
 
-    const subList = Object.keys(domainCounts)
-      .filter(function(d) { return !topDomains.has(d); })
-      .sort(function(a, b) { return (domainCounts[b]||0) - (domainCounts[a]||0); });
+    const subList = Object.keys(secondaryCounts)
+      .sort(function(a, b) { return (secondaryCounts[b]||0) - (secondaryCounts[a]||0); });
     let subChipsHTML = '<span class="filter-row-label">二级</span>\n';
     if (subList.length === 0) {
       subChipsHTML += '<span class="chip dim">—</span>';
     } else {
       subList.forEach(function(d) {
-        const n = domainCounts[d] || 0;
-        const parents = subParents[d] ? Object.keys(subParents[d]).join(' ') : '';
-        const parentCountsJson = subParentCounts[d] ? JSON.stringify(subParentCounts[d]).replace(/"/g, '&quot;') : '{}';
+        const n = secondaryCounts[d] || 0;
+        const parents = secondaryParents[d] ? Object.keys(secondaryParents[d]).join(' ') : '';
+        const parentCountsJson = secondaryParents[d] ? JSON.stringify(secondaryParents[d]).replace(/"/g, '&quot;') : '{}';
         const icon = domainIcon(d);
         subChipsHTML += '<span class="chip sub-chip" data-domain="' + esc(d) + '" data-parents="' + esc(parents) + '" data-global-count="' + n + '" data-parent-counts="' + parentCountsJson + '" onclick="setDomain(\'' + esc(d) + '\')">' + icon + esc(d) + ' <strong>' + n + '</strong></span>\n';
       });
@@ -1254,8 +1141,15 @@ function appFactory() {
     }
     function favicon(url) {
       if (!url) return '';
-      const domain = url.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
-      return 'https://www.google.com/s2/favicons?domain=' + encodeURIComponent(domain) + '&sz=32';
+      const host = url.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+      const letter = (host[0] || '?').toUpperCase();
+      // Inline SVG placeholder — no external requests, GFW-safe
+      const colors = ['#d97757','#509070','#4a7db0','#b0885c','#7b68ae','#c4576a','#5a8a6a','#b8804e'];
+      var hash = 0;
+      for (var i = 0; i < host.length; i++) { hash = ((hash << 5) - hash) + host.charCodeAt(i); hash |= 0; }
+      const color = colors[Math.abs(hash) % colors.length];
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><rect width="20" height="20" rx="4" fill="' + color + '" opacity="0.15"/><text x="10" y="14" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="600" fill="' + color + '">' + esc(letter) + '</text></svg>';
+      return 'data:image/svg+xml,' + encodeURIComponent(svg);
     }
     function displayUrl(url) {
       if (!url) return '';
@@ -1272,7 +1166,10 @@ function appFactory() {
         const tags = (Array.isArray(s.tags) ? s.tags : []).map(function(t) {
           return '<span class="tag clickable" onclick="event.stopPropagation();setSearch(\'' + esc(t) + '\')">' + esc(t) + '</span>';
         }).join('');
-        const domainsArr = s.domains || [];
+        // Normalized domain display: primary + secondary + cross
+        const domainsArr = s._primary ? [s._primary] : [];
+        if (s._secondary && s._secondary !== '未细分') domainsArr.push(s._secondary);
+        if (s._crossTags) domainsArr.push.apply(domainsArr, s._crossTags);
         const domainBadges = domainsArr.length === 0
           ? '<span class="cell-chip muted">—</span>'
           : domainsArr.map(function(d) { return '<span class="cell-chip clickable domain-badge" onclick="event.stopPropagation();setDomain(\'' + esc(d) + '\')" title="按领域筛选：' + esc(d) + '">' + esc(d) + '</span>'; }).join('');
@@ -1307,7 +1204,7 @@ function appFactory() {
   app.get('/health', function(req, res) {
     const sources = scanSources();
     const VALID_TIERS = ['S', 'A', 'X'];
-    const VALID_TYPES = ['权威源', '聚合源', '平台', '社区', 'AI原生'];
+    const VALID_TYPES = ['权威源', '聚合源', '平台', '社区', 'AI原生', '工具', '模板库', '工具站'];
 
     const checks = [];
     const issues = [];
@@ -1369,7 +1266,7 @@ function appFactory() {
     }
 
     // 10. Missing domains
-    const missingDomains = sources.filter(function(s) { return !s.domains || s.domains.length === 0; });
+    const missingDomains = sources.filter(function(s) { return !s._primary || !isValidPrimary(s._primary); });
     if (missingDomains.length > 0) {
       issues.push({ rule: 'empty_domains', count: missingDomains.length, files: missingDomains.map(function(s) { return s.file; }) });
     }
@@ -1409,7 +1306,7 @@ function appFactory() {
 
 if (require.main === module) {
   const app = appFactory();
-  app.listen(PORT, function() {
+  app.listen(PORT, '127.0.0.1', function() {
     console.log('\n📡 Source Rack · http://localhost:' + PORT);
     console.log('📂 Scanning: ' + SOURCES_DIR);
     console.log('📄 ' + scanSources().length + ' sources found\n');

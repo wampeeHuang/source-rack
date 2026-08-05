@@ -9,9 +9,10 @@ const http = require('http');
 
 const SOURCES_DIR = process.env.SOURCES_DIR || 'D:/Obsidian/wiki/entities/sources';
 const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3098';
-const VALID_TIERS = ['S', 'A', 'block'];
-const VALID_TYPES = ['权威源', '聚合源', '平台', '社区', 'AI原生'];
-const DOMAIN_ORDER = ['AI', '设计', '电商', '工具', '开发', '前端', '产品', '写作', '学习', '社区', '媒体', '参考', '搜索'];
+const VALID_TIERS = ['S', 'A', 'X', 'block'];
+const VALID_TYPES = ['权威源', '聚合源', '平台', '社区', 'AI原生', '工具', '模板库', '工具站'];
+const { PRIMARY_ORDER, isValidPrimary, normalizeDomains, SECONDARY_REGISTRY } = require('./domain-registry.js');
+const DOMAIN_ORDER = PRIMARY_ORDER;
 
 // ─── YAML frontmatter parser (same as server.js, kept independent) ───
 function frontmatter(text) {
@@ -153,10 +154,11 @@ async function main() {
     issues.push('invalid_enum');
   }
 
-  // 1.6 domains 含一级领域
+  // 1.6 domains 含合法新一级
   total++;
   const noPrimary = sources.filter(function(s) {
-    return !(s.domains || []).some(function(d) { return DOMAIN_ORDER.includes(d); });
+    var nd = normalizeDomains(s.domains || [], s.title, s.url);
+    return !isValidPrimary(nd.primary);
   });
   if (noPrimary.length === 0) { pass('领域分类: 每个源至少一个一级领域'); ok++; }
   else { fail('领域分类: ' + noPrimary.length + ' 个源缺一级领域'); noPrimary.slice(0,10).forEach(function(s) { warn('  ' + s.file + ': ' + (s.domains||[]).join(', ')); }); issues.push('no_primary_domain'); }

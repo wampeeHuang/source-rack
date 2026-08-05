@@ -1,0 +1,7 @@
+{
+  "id": "source-rack",
+  "name": "信息源管理 · Source Rack",
+  "description": "信息源管理面板，扫描 Obsidian wiki 三维过滤（档位/领域/类型），Swiss 极简 UI",
+  "status": "stable",
+  "created": "2026-06-20"
+}

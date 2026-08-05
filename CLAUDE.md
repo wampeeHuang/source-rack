@@ -3,6 +3,8 @@
 数据目录：`D:/Obsidian/wiki/entities/sources/`，一个 `.md` 一个源。
 Web 面板：http://localhost:3098
 
+**审查机制**: `_review/` 目录存在时，先读 `_review/brief.md` 了解待审内容，反馈写入 `_review/findings.md`。
+
 ## 收录标准
 
 ### 档位定义
@@ -28,13 +30,16 @@ Web 面板：http://localhost:3098
 
 ### 领域分类法
 
-**一级领域**（14 个，增删需修改 server.js DOMAIN_ORDER）：
-`AI` `设计` `电商` `工具` `开发` `前端` `产品` `写作` `学习` `社区` `媒体` `参考` `搜索` `商业`
+**一级领域**：`AI` `设计` `电商` `开发工具` `内容平台` `商业` `知识库`（7 个）
 
-**二级领域**（从实际数据派生，不限个数，同源可多领域）：
-二级领域与一级领域共现时自动建立父子关系（server.js 已实现）。
+**二级领域**：每个一级下有闭合二级词表。
 
-常用二级：`LLM` `Agent` `图像生成` `视频生成` `语音` `3D` `字体` `跨境电商` `品牌` `室内设计` `UI/UX` `数据分析` `RAG` `MCP` `OpenClaw`
+**合法标签全集**定义在 `domain-registry.js`（唯一真相源），运行以下命令查看：
+```bash
+node -e "const r = require('./domain-registry'); console.log(JSON.stringify({primary: r.PRIMARY_ORDER, oldTags: Object.keys(r.OLD_TO_NEW), secondary: r.SECONDARY_REGISTRY}, null, 2))"
+```
+
+标签修改只改 `domain-registry.js`，不改第二处。
 
 ## 卡片格式
 
@@ -84,6 +89,20 @@ last_used: 2026-06-14            # 系统自动维护，最近点击日期
 | AI原生 | `API/结构化抓取` |
 
 ## AI 操作指南
+
+### Agent 写入流程（任何 agent 进项目后遵循）
+
+```
+1. 读词表 → node -e "require('./domain-registry')" 查合法标签
+2. 写文件 → 按下方卡片格式写 .md 到 D:/Obsidian/wiki/entities/sources/
+3. 验证 → node _review/validate.js（确认分类正确）
+4. 刷新 → http://localhost:3098 确认显示正常
+```
+
+**核心规则：**
+- domains 标签必须来自 domain-registry.js 词表，不在词表的标签会被归一化为"未细分"
+- 新源 tier 默认 A
+- 文件名 = `{domain-name}.md`，从 URL 派生（`github-com.md`）
 
 ### 添加信息源（推荐方式：API）
 ```bash

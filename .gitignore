@@ -1,3 +1,4 @@
 node_modules/
-.pid
 _runtime/
+_review/*.json
+_review/*.txt
