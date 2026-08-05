@@ -1,4 +1,4 @@
-// Source Rack — 信息源管理面板
+﻿// Source Rack — 信息源管理面板
 // Scans wiki/entities/sources/*.md → renders HTML list
 const express = require('express');
 const fs = require('fs');
@@ -102,674 +102,132 @@ const HTML = `<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>信息源管理 — Source Rack</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='18' width='5' height='10' rx='1' fill='%23002FA7'/%3E%3Crect x='13.5' y='10' width='5' height='18' rx='1' fill='%23002FA7'/%3E%3Crect x='23' y='4' width='5' height='24' rx='1' fill='%23002FA7'/%3E%3Ccircle cx='6.5' cy='6' r='2.5' fill='%23002FA7' opacity='.35'/%3E%3Ccircle cx='16' cy='6' r='2.5' fill='%23002FA7' opacity='.55'/%3E%3Ccircle cx='25.5' cy='6' r='2.5' fill='%23002FA7' opacity='.75'/%3E%3C/svg%3E">
-<style>
-  :root {
-    /* Warm ivory + clay — aligned with minds.evopearl.com */
-    --paper: #faf9f5;
-    --ink: #141413;
-    --ink-rgb: 20,20,19;
-    --grey-1: #f5f4ed;
-    --grey-2: #d4d4d2;
-    --grey-3: #737373;
-    --accent: #d97757;
-    --accent-on: #ffffff;
-    --malachite: #509070;
-    --text-primary: #141413;
-    --text-secondary: #525252;
-    --text-helper: #737373;
-    --text-placeholder: #a3a3a3;
-    --border-subtle: #e0ddd5;
-    /* Carbon spacing */
-    --sp-3: 8px; --sp-4: 12px; --sp-5: 16px; --sp-6: 24px; --sp-7: 32px; --sp-8: 40px;
-    --sans: "DM Sans", "Inter", "Helvetica Neue", "Helvetica", "Arial", system-ui, -apple-system, sans-serif;
-    --sans-zh: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
-    --serif: "Noto Serif SC", "Source Serif 4", Georgia, serif;
-    --mono: "IBM Plex Mono", "JetBrains Mono", "SF Mono", "Cascadia Code", "Consolas", ui-monospace, monospace;
-    --radius-sm: 6px; --radius-md: 8px; --radius-pill: 20px;
-    --shadow-card: 0 1px 1px rgba(0,0,0,0.04), 0 4px 4px rgba(0,0,0,0.03);
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: var(--sans), var(--sans-zh);
-    background: var(--paper); color: var(--ink); line-height: 1.5; font-size: 14px;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  /* ── Header ── */
-  .topbar {
-    padding: var(--sp-7) 24px var(--sp-6);
-    display: flex; align-items: flex-end; justify-content: space-between;
-    border-bottom: 2px solid var(--ink);
-  }
-  .topbar .head-group { display: flex; align-items: center; gap: var(--sp-4); }
-  .topbar .logo { flex-shrink: 0; }
-  .topbar h1 {
-    font-family: var(--serif), var(--sans-zh);
-    font-size: 28px; font-weight: 700; letter-spacing: -0.02em;
-    color: var(--ink); line-height: 1;
-  }
-  .topbar .sub {
-    font-size: 12px; font-weight: 400; color: var(--text-helper);
-    margin-top: 2px; letter-spacing: 0.02em;
-  }
-  .topbar .tagline {
-    font-size: 13px; font-weight: 300; color: var(--text-secondary);
-    margin-top: 6px; letter-spacing: 0.01em; font-style: italic;
-  }
-  .health-dot {
-    display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-    transition: background 0.3s;
-  }
-  .health-dot.green { background: #1a7a3a; }
-  .health-dot.yellow { background: #d4a017; }
-  .health-dot.red { background: #c00; }
-  .health-dot.loading { background: var(--text-placeholder); animation: healthPulse 1.2s ease-in-out infinite; }
-  @keyframes healthPulse { 0%,100%{opacity:0.3} 50%{opacity:1} }
-  .health-checks {
-    display: inline-flex; align-items: center; position: relative;
-    font-size: 12px; margin-top: 5px;
-  }
-  .health-checks details { display: inline-flex; }
-  .health-checks summary {
-    cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 4px;
-    user-select: none;
-  }
-  .health-checks summary::-webkit-details-marker { display: none; }
-  .health-checks summary .caret { font-size: 8px; color: var(--text-placeholder); transition: transform 0.15s; }
-  .health-checks details[open] summary .caret { transform: rotate(90deg); }
-  .health-status { color: var(--text-secondary); cursor: default; white-space: nowrap; }
-  .health-status .cmd { color: var(--accent); font-weight: 500; }
-  .health-checks-list {
-    position: absolute; top: calc(100% + 6px); left: 0; z-index: 200;
-    margin: 0; padding: 10px 14px; background: var(--paper);
-    border: 1px solid var(--border-subtle); list-style: none;
-    font-size: 11px; line-height: 2; color: var(--text-secondary);
-    min-width: 360px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-  }
-  .health-checks-list .pass { color: #1a7a3a; }
-  .health-checks-list .fail { color: #a61b1b; }
-  .health-legend {
-    margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-subtle);
-    font-size: 10px; line-height: 1.7; color: var(--text-helper) !important;
-    white-space: nowrap;
-  }
-  .health-legend b { color: var(--text-secondary); }
-  .health-legend .hl-red { color: #a61b1b; }
-  .health-legend .hl-yellow { color: #8a6d14; }
-  .health-legend .hl-green { color: #1a7a3a; }
-  .health-legend .say { background: var(--border-subtle); padding: 0 4px; border-radius: 3px; font-weight: 500; }
-  .topbar .search-wrap { display: flex; align-items: center; gap: 0; }
-  .topbar .search-wrap input {
-    padding: 8px 12px 8px 12px; border: 1px solid var(--border-subtle); border-right: none;
-    font-size: 13px; width: 200px; outline: none;
-    background: var(--paper); color: var(--ink);
-    font-family: var(--sans), var(--sans-zh);
-    transition: border-color 0.15s var(--ease-prod, cubic-bezier(.2,0,.38,.9));
-  }
-  .topbar .search-wrap input:focus { border-color: var(--accent); }
-  .topbar .search-wrap input:focus + .search-btn { border-color: var(--accent); }
-  .topbar .search-wrap input::placeholder { color: var(--text-placeholder); }
-  .search-btn {
-    padding: 8px 10px; border: 1px solid var(--border-subtle); border-left: none;
-    background: var(--paper); color: var(--text-helper); cursor: pointer;
-    font-size: 14px; line-height: 1;
-    transition: border-color 0.15s var(--ease-prod, cubic-bezier(.2,0,.38,.9));
-  }
-  .search-btn:hover { color: var(--accent); }
-  /* ── Container ── */
-  .container { max-width: 1600px; margin: 0 auto; padding: var(--sp-6) 24px; }
-
-  /* ── Filters ── */
-  .filter-panel { margin-bottom: var(--sp-6); }
-  .filter-row {
-    display: flex; align-items: center; gap: var(--sp-4);
-    padding: var(--sp-3) 0 28px; flex-wrap: wrap; overflow-x: visible;
-    scrollbar-width: none; -ms-overflow-style: none;
-  }
-  .filter-row::-webkit-scrollbar { display: none; }
-  .filter-row:last-of-type { padding-bottom: var(--sp-3); }
-  .filter-row-label {
-    font-family: var(--mono); font-size: 10px; font-weight: 500;
-    color: rgba(var(--ink-rgb), 0.35); text-transform: uppercase;
-    letter-spacing: 0.08em;
-    min-width: 32px; flex-shrink: 0;
-  }
-  .chip {
-    padding: 7px 18px; font-size: 13px; font-weight: 500;
-    background: transparent; border: 1px solid rgba(var(--ink-rgb), 0.12);
-    cursor: pointer; border-radius: var(--radius-pill);
-    transition: all 0.18s; user-select: none; white-space: nowrap;
-    color: rgba(var(--ink-rgb), 0.6); display: inline-flex; align-items: center; gap: 5px;
-    font-family: var(--mono); letter-spacing: 0.04em;
-  }
-  .domain-icon { display: inline-flex; align-items: center; flex-shrink: 0; color: var(--accent); }
-  .chip.active .domain-icon { color: var(--accent-on); }
-  .chip.parent-active .domain-icon { color: var(--accent); }
-  .domain-icon svg { display: block; }
-  .chip:hover { background: var(--grey-1); color: var(--ink); border-color: rgba(var(--ink-rgb), 0.25); }
-  .chip.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-  .chip.parent-active { border-color: var(--accent); color: var(--accent); background: rgba(217,119,87,0.06); }
-  .chip.dim { opacity: 0.25; pointer-events: none; }
-  .chip strong { font-weight: 600; }
-  /* tooltip — positioned above chip, out of flow */
-  .chip[data-tip] { position: relative; }
-  .chip[data-tip]:hover::after {
-    content: attr(data-tip);
-    position: absolute; bottom: calc(100% + 6px); left: 50%;
-    transform: translateX(-50%);
-    background: var(--grey-1); color: var(--ink);
-    padding: 6px 12px; font-size: 12px; line-height: 1.5;
-    white-space: nowrap; z-index: 999; pointer-events: none;
-    border: 1px solid rgba(var(--ink-rgb), 0.08);
-  }
-  .domain-sep {
-    padding: 4px 2px; font-size: 10px; color: var(--text-placeholder);
-    user-select: none; align-self: center;
-  }
-
-  .count-badge {
-    margin-left: auto; font-size: 12px; color: var(--text-helper);
-    padding: 4px 0; white-space: nowrap;
-  }
-
-  /* ── List ── */
-  .list { border: 1px solid var(--border-subtle); }
-  .list-h {
-    display: grid; grid-template-columns: 52px 1fr 150px 100px 140px 220px;
-    padding: 11px var(--sp-5); border-bottom: 1px solid rgba(var(--ink-rgb), 0.9);
-    background: var(--ink); font-size: 11px; font-weight: 500;
-    color: rgba(255,255,255,0.5); letter-spacing: 0.05em;
-    align-items: center; gap: var(--sp-4);
-    font-family: var(--mono); text-transform: uppercase;
-  }
-  .row {
-    display: grid; grid-template-columns: 52px 1fr 150px 100px 140px 220px;
-    padding: 13px var(--sp-5); border-bottom: 1px solid var(--border-subtle);
-    align-items: center; gap: var(--sp-4); transition: background 0.1s;
-  }
-  .row:last-child { border-bottom: none; }
-  .row:hover { background: rgba(217,119,87,0.04); }
-  .row.hidden { display: none; }
-  .row.stale { opacity: 0.5; }
-  .row.stale:hover { opacity: 0.85; }
-  .stale-badge {
-    display: inline-block; margin-left: 8px; padding: 1px 7px; font-size: 10px;
-    font-weight: 500; color: var(--text-placeholder); border: 1px solid var(--border-subtle);
-    vertical-align: middle;
-  }
-  .stale-badge.warm { color: #b45309; border-color: #fdba74; }
-
-  /* ── Tier badge ── */
-  .tier-badge {
-    width: 30px; height: 30px; font-weight: 600; font-size: 12px;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-    font-family: var(--mono); border-radius: var(--radius-sm);
-  }
-  .tier-s { color: var(--accent); border: 1.5px solid var(--accent); background: rgba(217,119,87,0.06); }
-  .tier-a { color: rgba(var(--ink-rgb), 0.35); border: 1px solid rgba(var(--ink-rgb), 0.12); }
-  .tier-x { color: #c00; border: 1.5px solid #c00; background: rgba(204,0,0,0.04); }
-
-  /* ── Cell chips: domain / type / strategy / tag — all chip-style ── */
-  .cell-chip {
-    display: inline-block; padding: 3px 10px; font-size: 11px; font-weight: 500;
-    border: 1px solid rgba(var(--ink-rgb), 0.08); color: rgba(var(--ink-rgb), 0.5);
-    white-space: nowrap; cursor: default; border-radius: var(--radius-sm);
-    font-family: var(--mono); letter-spacing: 0.03em;
-  }
-  .cell-chip.clickable { cursor: pointer; }
-  .cell-chip.clickable:hover { border-color: rgba(var(--ink-rgb), 0.25); color: var(--ink); background: var(--grey-1); }
-  .cell-chip.muted { color: var(--text-helper); }
-
-  .domain-badge { margin-right: 4px; margin-bottom: 3px; }
-  .domain-cell { display: flex; flex-wrap: nowrap; gap: 0; overflow: hidden; }
-  .src-type { margin-right: 4px; }
-  .tag {
-    display: inline-block; padding: 3px 10px; font-size: 11px; font-weight: 500;
-    border: 1px solid rgba(var(--ink-rgb), 0.08); color: rgba(var(--ink-rgb), 0.5);
-    white-space: nowrap; margin-right: 4px; margin-bottom: 3px;
-    border-radius: var(--radius-sm); font-family: var(--mono); letter-spacing: 0.03em;
-  }
-  .tag.clickable { cursor: pointer; }
-  .tag.clickable:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-  .tag-cell { display: flex; flex-wrap: nowrap; gap: 3px; overflow: hidden; }
-
-  /* ── Source info ── */
-  .src-name { font-weight: 600; font-size: 14px; color: var(--ink); letter-spacing: -0.01em; }
-  .src-url, .src-url:visited { font-size: 12px; color: var(--accent); margin-top: 1px; font-family: var(--mono); text-decoration: none; }
-  .src-url:hover { color: var(--ink); text-decoration: underline; }
-  .src-desc { font-size: 12px; color: var(--text-secondary); margin-top: 4px; line-height: 1.5; max-width: 480px; }
-  .click-badge {
-    font-size: 11px; font-weight: 600;
-    padding: 2px 8px; margin-left: 6px;
-    display: inline-block; vertical-align: middle;
-    color: #9ca3af; border: 1px solid #e5e7eb;
-  }
-  .click-warm { color: #d97706; border-color: #fcd34d; background: rgba(245,158,11,0.08); }
-  .click-hot  { color: #fff; background: #ef4444; border-color: #ef4444; }
-  a.heat-toggle {
-    font-family: var(--serif); font-size: 13px; font-weight: 600;
-    color: var(--malachite); text-decoration: none;
-    cursor: pointer; padding: 4px 14px;
-    border: 1px solid rgba(80,144,112,0.35);
-    border-radius: var(--radius-pill);
-    user-select: none; display: inline-block;
-    transition: all 0.18s; letter-spacing: 0.03em;
-  }
-  a.heat-toggle:hover { background: rgba(80,144,112,0.08); border-color: var(--malachite); }
-  a.heat-toggle.on { color: var(--accent); border-color: rgba(217,119,87,0.35); }
-  a.heat-toggle.on:hover { background: rgba(217,119,87,0.08); border-color: var(--accent); }
-  .favicon { flex-shrink: 0; opacity: 0.85; }
-
-  .empty { padding: 64px; text-align: center; color: var(--text-helper); font-size: 13px; font-weight: 300; }
-  .note { margin-top: var(--sp-5); font-size: 11px; color: var(--text-placeholder); padding: 0; letter-spacing: 0.03em; }
-
-  /* ── Principles ── */
-  .principles-bar { max-width: 1600px; margin: 0 auto; padding: var(--sp-8) 5vw var(--sp-6); }
-  .principles-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--border-subtle); }
-  .principle { background: var(--paper); padding: 24px 20px; }
-  .principle-num { font-family: var(--mono); font-size: 10px; font-weight: 500; color: var(--accent); opacity: 0.45; margin-bottom: 10px; letter-spacing: 0.04em; }
-  .principle-head { font-size: 15px; font-weight: 500; color: var(--ink); margin-bottom: 6px; letter-spacing: -0.01em; line-height: 1.4; }
-  .principle-body { font-size: 12px; font-weight: 300; color: var(--text-secondary); line-height: 1.6; }
-
-  /* ── Architecture Flow ── */
-  .arch-section { max-width: 1600px; margin: 0 auto; padding: 0 5vw var(--sp-8); }
-  .arch-section-label {
-    font-size: 11px; font-weight: 600; color: var(--text-helper);
-    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: var(--sp-5);
-    display: flex; align-items: center; gap: var(--sp-3);
-  }
-  .arch-section-label::after {
-    content: ""; flex: 1; height: 1px; background: var(--border-subtle);
-  }
-  .arch-svg { width: 100%; display: block; }
-</style>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='3' fill='%233D6B4A'/%3E%3Ctext x='16' y='23' text-anchor='middle' fill='white' font-family='serif' font-size='20' font-weight='700'%3E源%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/tokens/brand.css">
+<link rel="stylesheet" href="/tokens/layout.css">
+<link rel="stylesheet" href="/app.css">
 </head>
-<body>
+<body data-total-count="SOURCES_PLACEHOLDER_COUNT">
 
-<div class="topbar">
-  <div>
-    <div class="head-group">
-      <svg class="logo" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="4" y="18" width="5" height="10" rx="1" fill="var(--accent)"/>
-        <rect x="13.5" y="10" width="5" height="18" rx="1" fill="var(--accent)"/>
-        <rect x="23" y="4" width="5" height="24" rx="1" fill="var(--accent)"/>
-        <circle cx="6.5" cy="6" r="2.5" fill="var(--accent)" opacity="0.35"/>
-        <circle cx="16" cy="6" r="2.5" fill="var(--accent)" opacity="0.55"/>
-        <circle cx="25.5" cy="6" r="2.5" fill="var(--accent)" opacity="0.75"/>
-      </svg>
-      <div>
-        <h1>信息源管理</h1>
-        <div class="sub">Source Rack · SOURCES_PLACEHOLDER_COUNT 个源</div>
-        <div class="tagline">策展即权力，分类即导航</div>
-        <div class="health-checks" id="healthChecks">
-          <details>
-            <summary><span id="healthDot" class="health-dot loading"></span><span id="healthStatus" class="health-status">检查中…</span><span class="caret">▸</span></summary>
-            <ul id="healthChecksList" class="health-checks-list"></ul>
-          </details>
-        </div>
-      </div>
+<!-- ═══ Zone 1: Header ═══ -->
+<header class="header">
+  <div class="header-brand">
+    <svg class="logo-mark" width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <rect class="logo-tile" width="32" height="32" rx="3" fill="#3D6B4A"/>
+      <text x="16" y="23" text-anchor="middle" fill="#fff" font-family="serif" font-size="20" font-weight="700">源</text>
+    </svg>
+    <div class="header-title">
+      <h1>信息源管理</h1>
+      <div class="header-subtitle">Source Rack · SOURCES_PLACEHOLDER_COUNT 个源</div>
+      <div class="header-tagline">策展即权力，分类即导航</div>
     </div>
   </div>
-  <div class="search-wrap">
-    <input type="text" id="searchInput" placeholder="输入关键词即时筛选…" oninput="applyFilters()">
-    <button class="search-btn" onclick="applyFilters()" title="筛选">⌕</button>
+  <div class="header-health" id="healthChecks">
+    <details>
+      <summary>
+        <span id="healthDot" class="health-dot loading"></span>
+        <span id="healthStatus" class="health-status">检查中…</span>
+      </summary>
+      <ul id="healthChecksList" class="health-checks-list"></ul>
+    </details>
   </div>
-</div>
+</header>
 
+<!-- ═══ Zone 2: Filter Bar ═══ -->
 <div class="container">
-  <div class="filter-panel">
-    <div class="filter-row">TIER_CHIPS_ROW
-    </div>
-    <div class="filter-row domain-top-row">
-      DOMAIN_TOP_ROW
-    </div>
-    <div class="filter-row" id="subDomainRow" style="display:none;">
-      DOMAIN_SUB_ROW
-    </div>
+  <nav class="filter-bar">
+    <div class="filter-row">TIER_CHIPS_ROW</div>
+    <div class="filter-row">DOMAIN_TOP_ROW</div>
+    <div class="filter-row" id="subDomainRow">DOMAIN_SUB_ROW</div>
     <div class="filter-row">
       <span class="filter-row-label">类型</span>
       <span class="chip active" data-type="all" onclick="setType('all')">全部</span>
     </div>
-  </div>
+    <div class="filter-row">
+      <span class="filter-row-label">搜索</span>
+      <input type="text" id="searchInput" class="search-input" placeholder="输入关键词即时筛选…" oninput="applyFilters()">
+      <button class="search-btn" onclick="applyFilters()" title="筛选">&#x2315;</button>
+    </div>
+  </nav>
 
+  <!-- ═══ Zone 3: Data Table ═══ -->
   <div class="list">
-    <div class="list-h">
-      <div>档位</div><div>来源 <a class="heat-toggle" id="heatToggle" href="javascript:" onclick="toggleHeat()" title="当前：按热度降序——近30天点击最多的在最上面">热度↓</a></div><div>领域</div><div>类型</div><div>搜索策略</div><div>标签</div>
+    <div class="list-header">
+      <div class="list-header-cell col-tier">档位</div>
+      <div class="list-header-cell col-source">
+        来源
+        <a class="heat-toggle" id="heatToggle" href="javascript:" onclick="toggleHeat()" title="当前：按热度降序——近30天点击最多的在最上面">热度↓</a>
+      </div>
+      <div class="list-header-cell col-domain">领域</div>
+      <div class="list-header-cell col-type">类型</div>
+      <div class="list-header-cell col-strategy">搜索策略</div>
+      <div class="list-header-cell col-tags">标签</div>
     </div>
     <div id="listBody">SOURCES_PLACEHOLDER_ROWS</div>
   </div>
-
-  <div class="principles-bar">
-    <div class="principles-grid">
-      <div class="principle">
-        <div class="principle-num">01</div>
-        <div class="principle-head">文件即真相源</div>
-        <div class="principle-body">每个 .md 一个信息源。YAML frontmatter 是唯一数据——没有数据库、没有后台、没有冗余。</div>
-      </div>
-      <div class="principle">
-        <div class="principle-num">02</div>
-        <div class="principle-head">分类先于列举</div>
-        <div class="principle-body">两级领域分类 + 类型 + 档位。碎片信息不可迁移，框架可以。点 chip 就是在建构检索路径。</div>
-      </div>
-      <div class="principle">
-        <div class="principle-num">03</div>
-        <div class="principle-head">策展即权力</div>
-        <div class="principle-body">不加 why 不收——收录理由强制必填。每一条策展决定都在定义什么值得被记住。</div>
-      </div>
-      <div class="principle">
-        <div class="principle-num">04</div>
-        <div class="principle-head">生长 &gt; 归档</div>
-        <div class="principle-body">系统价值 = 策展增量，不 = 文件数量。每次 AI 对话中发现的优质源，零摩擦进入源架。</div>
-      </div>
-      <div class="principle">
-        <div class="principle-num">05</div>
-        <div class="principle-head">优胜劣汰</div>
-        <div class="principle-body">新陈代谢是活的标志。不用的沉底，404 淘汰。S = 近 30 天 ≥ 10 次点击（算法自动），A = 默认档位，X = 纯人工黑名单。每次点击都在为它投票——只进不出是垃圾场。</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="arch-section">
-    <div class="arch-section-label">架构：信息源怎么流动</div>
-    <svg viewBox="0 0 1480 340" class="arch-svg" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <marker id="arrowHead" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
-          <polygon points="0 0, 10 4, 0 8" fill="#d97757"/>
-        </marker>
-        <marker id="arrowFeedback" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
-          <polygon points="0 0, 10 4, 0 8" fill="#999"/>
-        </marker>
-        <linearGradient id="pillGrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stop-color="#d97757"/>
-          <stop offset="100%" stop-color="#0040c0"/>
-        </linearGradient>
-      </defs>
-
-      <!-- ====== NODE 1: 发现 (terminator/pill) ====== -->
-      <rect x="30" y="75" width="220" height="90" rx="45" fill="url(#pillGrad)" stroke="#d97757" stroke-width="2"/>
-      <text x="140" y="112" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="17" font-weight="700">01 · 发现</text>
-      <text x="140" y="135" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-family="system-ui,sans-serif" font-size="13">AI 对话 / 用户推荐</text>
-
-      <!-- Arrow 1→2 -->
-      <line x1="250" y1="120" x2="335" y2="120" stroke="#d97757" stroke-width="2" marker-end="url(#arrowHead)"/>
-
-      <!-- ====== NODE 2: 收录 (process rect) ====== -->
-      <rect x="345" y="75" width="220" height="90" rx="6" fill="#fff" stroke="#d97757" stroke-width="2"/>
-      <rect x="345" y="75" width="6" height="90" rx="3" fill="#d97757"/>
-      <text x="455" y="112" text-anchor="middle" fill="#222" font-family="system-ui,sans-serif" font-size="17" font-weight="700">02 · 收录</text>
-      <text x="455" y="135" text-anchor="middle" fill="#666" font-family="system-ui,sans-serif" font-size="13">POST /sources 校验落盘</text>
-
-      <!-- Arrow 2→3 -->
-      <line x1="565" y1="120" x2="625" y2="120" stroke="#d97757" stroke-width="2" marker-end="url(#arrowHead)"/>
-
-      <!-- ====== NODE 3: 存储 (cylinder/data shape) ====== -->
-      <path d="M 635,80 A 110,15 0 0,0 855,80 L 855,150 A 110,15 0 0,1 635,150 Z" fill="#fdf5f2" stroke="#d97757" stroke-width="2"/>
-      <ellipse cx="745" cy="80" rx="110" ry="15" fill="#fbe8df" stroke="#d97757" stroke-width="2"/>
-      <text x="745" y="110" text-anchor="middle" fill="#222" font-family="system-ui,sans-serif" font-size="17" font-weight="700">03 · 存储</text>
-      <text x="745" y="133" text-anchor="middle" fill="#666" font-family="system-ui,sans-serif" font-size="13">Obsidian .md YAML frontmatter</text>
-
-      <!-- Arrow 3→4 -->
-      <line x1="865" y1="120" x2="925" y2="120" stroke="#d97757" stroke-width="2" marker-end="url(#arrowHead)"/>
-
-      <!-- ====== NODE 4: 查询 (process rect) ====== -->
-      <rect x="935" y="75" width="220" height="90" rx="6" fill="#fff" stroke="#d97757" stroke-width="2"/>
-      <rect x="935" y="75" width="6" height="90" rx="3" fill="#d97757"/>
-      <text x="1045" y="112" text-anchor="middle" fill="#222" font-family="system-ui,sans-serif" font-size="17" font-weight="700">04 · 查询</text>
-      <text x="1045" y="135" text-anchor="middle" fill="#666" font-family="system-ui,sans-serif" font-size="13">面板过滤 + AI grep 检索</text>
-
-      <!-- Arrow 4→5 -->
-      <line x1="1155" y1="120" x2="1215" y2="120" stroke="#d97757" stroke-width="2" marker-end="url(#arrowHead)"/>
-
-      <!-- ====== NODE 5: 代谢 (process rect) ====== -->
-      <rect x="1225" y="75" width="220" height="90" rx="6" fill="#fff" stroke="#d97757" stroke-width="2"/>
-      <rect x="1225" y="75" width="6" height="90" rx="3" fill="#d97757"/>
-      <text x="1335" y="112" text-anchor="middle" fill="#222" font-family="system-ui,sans-serif" font-size="17" font-weight="700">05 · 代谢</text>
-      <text x="1335" y="135" text-anchor="middle" fill="#666" font-family="system-ui,sans-serif" font-size="13">last_used 排序 · 沉底淘汰</text>
-
-      <!-- ====== FEEDBACK LOOP: 代谢 → 发现 ====== -->
-      <path d="M 1335,165 L 1335,290 L 140,290 L 140,170"
-            fill="none" stroke="#999" stroke-width="1.8" stroke-dasharray="8,4"
-            marker-end="url(#arrowFeedback)"/>
-      <!-- Feedback label -->
-      <rect x="660" y="276" width="155" height="28" rx="14" fill="#fff" stroke="#ddd" stroke-width="1"/>
-      <text x="737" y="294" text-anchor="middle" fill="#888" font-family="system-ui,sans-serif" font-size="12">反馈循环 · 越用越活</text>
-
-      <!-- ====== LAYER LABELS (below nodes) ====== -->
-      <text x="30" y="205" fill="#ccc" font-family="system-ui,sans-serif" font-size="10" text-anchor="start">INPUT</text>
-      <text x="345" y="205" fill="#ccc" font-family="system-ui,sans-serif" font-size="10" text-anchor="start">API</text>
-      <text x="635" y="205" fill="#ccc" font-family="system-ui,sans-serif" font-size="10" text-anchor="start">VAULT</text>
-      <text x="935" y="205" fill="#ccc" font-family="system-ui,sans-serif" font-size="10" text-anchor="start">SURFACE</text>
-      <text x="1225" y="205" fill="#ccc" font-family="system-ui,sans-serif" font-size="10" text-anchor="start">DECAY</text>
-    </svg>
-  </div>
-
-  <div class="note">
-    SOURCES_PLACEHOLDER_DIR · frontmatter 驱动 · 每个 .md 一个源
-  </div>
 </div>
 
-<script>
-var tier = 'all', domain = 'all', stype = 'all';
-function setTier(t) {
-  tier = t;
-  document.querySelectorAll('.filter-row .chip[data-tier]').forEach(function(c) {
-    c.classList.toggle('active', c.dataset.tier === t);
-  });
-  applyFilters();
-}
-function setDomain(d) {
-  domain = d;
-  // Clear all domain chip states first
-  document.querySelectorAll('.filter-row .chip[data-domain]').forEach(function(c) {
-    c.classList.remove('active', 'parent-active');
-  });
-  // Highlight clicked chip
-  var clicked = document.querySelector('.filter-row .chip[data-domain="' + d + '"]');
-  if (clicked) clicked.classList.add('active');
-  // Show 二级 row when a 一级 is selected, show only relevant sub-chips
-  var subChips = document.querySelectorAll('.sub-chip');
-  var TOP_DOMAINS = ['AI','设计','电商','开发工具','内容平台','商业','知识库'];
-  var subRow = document.getElementById('subDomainRow');
-  if (d === 'all') {
-    subChips.forEach(function(c) { c.style.display = 'none'; });
-    if (subRow) subRow.style.display = 'none';
-  } else if (TOP_DOMAINS.indexOf(d) >= 0) {
-    if (subRow) subRow.style.display = '';
-    subChips.forEach(function(c) {
-      var parents = (c.dataset.parents || '').split(' ');
-      if (parents.indexOf(d) >= 0) {
-        c.style.display = '';
-        var pcs;
-        try { pcs = JSON.parse(c.dataset.parentCounts || '{}'); } catch(e) { pcs = {}; }
-        var count = pcs[d] || 0;
-        var strong = c.querySelector('strong');
-        if (strong) strong.textContent = count;
-      } else {
-        c.style.display = 'none';
-      }
-    });
-  } else {
-    // Secondary domain: show all sub-chips, restore global counts, highlight parents
-    if (subRow) subRow.style.display = '';
-    subChips.forEach(function(c) { c.style.display = ''; });
-    subChips.forEach(function(c) {
-      var gc = c.dataset.globalCount;
-      var strong = c.querySelector('strong');
-      if (strong && gc) strong.textContent = gc;
-    });
-    // Highlight parent primary chips for the selected secondary domain
-    subChips.forEach(function(c) {
-      if (c.dataset.domain === d) {
-        var parents = (c.dataset.parents || '').split(' ');
-        parents.forEach(function(p) {
-          var parentChip = document.querySelector('.filter-row .chip[data-domain="' + p + '"]');
-          if (parentChip) parentChip.classList.add('parent-active');
-        });
-      }
-    });
-  }
-  applyFilters();
-}
-function setType(t) {
-  stype = t;
-  document.querySelectorAll('.filter-row .chip[data-type]').forEach(function(c) {
-    c.classList.toggle('active', c.dataset.type === t);
-  });
-  applyFilters();
-}
-function setSearch(q) {
-  document.getElementById('searchInput').value = q;
-  applyFilters();
-}
-function applyFilters() {
-  var search = (document.getElementById('searchInput').value || '').toLowerCase();
-  var visible = 0;
-  document.querySelectorAll('.row').forEach(function(r) {
-    var t = r.dataset.tier, d = r.dataset.domain, tp = r.dataset.type;
-    var text = r.dataset.text || '';
-    var match = true;
-    if (tier !== 'all' && t !== tier) match = false;
-    if (domain !== 'all' && !d.split(' ').includes(domain)) match = false;
-    if (stype !== 'all' && tp !== stype) match = false;
-    if (search && text.indexOf(search) === -1) match = false;
-    r.classList.toggle('hidden', !match);
-    if (match) visible++;
-  });
-  var el = document.getElementById('countDisplay');
-  if (el) el.textContent = visible + ' / SOURCES_PLACEHOLDER_COUNT';
+<!-- ═══ Zone 4: Documentation Footer ═══ -->
+<footer class="doc-footer" id="docFooter">
+  <button class="doc-toggle" id="docToggle" onclick="toggleDocPanel()" aria-expanded="false">
+    <span>系统规则文档</span>
+    <span class="doc-toggle-chevron">&#x25B2;</span>
+  </button>
+  <div class="doc-content" id="docContent" hidden>
+    <div class="doc-grid">
+      <details class="doc-section" open>
+        <summary>收录标准</summary>
+        <ol class="doc-list">
+          <li><strong>一手优先</strong> — 原创/权威源，不收转载聚合站</li>
+          <li><strong>领域相关</strong> — 与当前工作领域至少一项交集</li>
+          <li><strong>有 why</strong> — why 字段必填，不加理由的源不收</li>
+          <li><strong>持续更新</strong> — 更新频率 ≥ 月更</li>
+          <li><strong>URL 完整</strong> — 必须是完整 https:// 地址</li>
+        </ol>
+      </details>
+      <details class="doc-section">
+        <summary>档位定义</summary>
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead><tr><th>档位</th><th>含义</th><th>算法规则</th></tr></thead>
+            <tbody>
+              <tr><td><span class="tier-badge tier-s">S</span></td><td>高频信源</td><td>近30天点击 ≥ 10 次自动升S。不用即掉回A——时间会自然淘汰</td></tr>
+              <tr><td><span class="tier-badge tier-a">A</span></td><td>常规信源</td><td>默认档位。新源从此起步，持续使用冲S</td></tr>
+              <tr><td><span class="tier-badge tier-x">X</span></td><td>黑名单</td><td>纯人工档位。只有 tier_override: X 才进入。算法永不会自动标记X</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+      <details class="doc-section">
+        <summary>领域分类</summary>
+        <p class="doc-text">两级分类体系。7个一级领域：AI、设计、电商、开发工具、内容平台、商业、知识库。每个一级下有闭合二级词表。完整标签全集定义在 <code>domain-registry.js</code>（唯一真相源），运行 <code>node -e "require('./domain-registry')"</code> 查看。</p>
+      </details>
+      <details class="doc-section">
+        <summary>新陈代谢规则</summary>
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead><tr><th>条件</th><th>动作</th></tr></thead>
+            <tbody>
+              <tr><td>last_used 空缺 + added > 90天</td><td>标记 stale，UI 半透明沉底</td></tr>
+              <tr><td>last_used > 90天（S档）</td><td>人工审查，不再用则降级为A</td></tr>
+              <tr><td>last_used > 90天（A档）</td><td>候选删除，清理时优先删</td></tr>
+              <tr><td>URL 返回 4xx/5xx</td><td>标记 dead，404 直接删</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+  </div>
+</footer>
 
-  // Tier, type, and domain chip counts all stay at server-rendered global totals.
-  // Only the visible row count changes with filtering.
-}
-document.addEventListener('DOMContentLoaded', function() {
-  var el = document.getElementById('countDisplay');
-  if (el) el.textContent = 'SOURCES_PLACEHOLDER_COUNT / SOURCES_PLACEHOLDER_COUNT';
+<div class="container">
+  <div class="note">SOURCES_PLACEHOLDER_DIR · frontmatter 驱动 · 每个 .md 一个源</div>
+</div>
 
-  // Health dot + status + checklist
-  var dot = document.getElementById('healthDot');
-  var statusEl = document.getElementById('healthStatus');
-  var checksList = document.getElementById('healthChecksList');
-  if (!dot || !statusEl) return;
-  fetch('/health').then(function(r) { return r.json(); }).then(function(h) {
-    dot.classList.remove('loading');
-    var gateBreaks = h.gate_breaks ? h.gate_breaks.length : 0;
-    var warnings = h.warnings ? h.warnings.length : 0;
-    var total = h.total || 0;
-
-    // Atomic checks
-    var allChecks = [
-      { label: '文件总数', pass: true, detail: total + ' 个源' },
-      { label: 'URL 无重复', pass: true, detail: '0 重复' },
-      { label: 'URL 无缺失', pass: true, detail: '0 缺URL' },
-      { label: '档位无缺失', pass: true, detail: '0 缺档位' },
-      { label: '类型无缺失', pass: true, detail: '0 缺类型' },
-      { label: '领域无缺失', pass: true, detail: '0 缺领域' },
-      { label: '枚举值合法', pass: true, detail: '0 非法值' },
-    ];
-
-    var issueMap = {};
-    (h.gate_breaks||[]).concat(h.warnings||[]).forEach(function(iss) { issueMap[iss.rule] = iss; });
-    if (issueMap['duplicate_urls']) { allChecks[1].pass = false; allChecks[1].detail = issueMap['duplicate_urls'].count + ' 重复'; }
-    if (issueMap['missing_url']) { allChecks[2].pass = false; allChecks[2].detail = issueMap['missing_url'].count + ' 缺URL'; }
-    if (issueMap['missing_tier']) { allChecks[3].pass = false; allChecks[3].detail = issueMap['missing_tier'].count + ' 缺档位'; }
-    if (issueMap['missing_type']) { allChecks[4].pass = false; allChecks[4].detail = issueMap['missing_type'].count + ' 缺类型'; }
-    if (issueMap['empty_domains']) { allChecks[5].pass = false; allChecks[5].detail = issueMap['empty_domains'].count + ' 缺领域'; }
-    if (issueMap['invalid_tiers'] || issueMap['invalid_types']) {
-      allChecks[6].pass = false;
-      var iv = (issueMap['invalid_tiers'] ? issueMap['invalid_tiers'].count : 0) + (issueMap['invalid_types'] ? issueMap['invalid_types'].count : 0);
-      allChecks[6].detail = iv + ' 非法值';
-    }
-
-    // Dot color + status text (user-facing, with AI invocation hint)
-    statusEl.textContent = '';
-    if (gateBreaks > 0) {
-      dot.classList.add('red');
-      var cmd = document.createElement('span'); cmd.className = 'cmd'; cmd.textContent = '对AI说「修闸门」';
-      statusEl.appendChild(cmd); statusEl.appendChild(document.createTextNode(' — ' + gateBreaks + ' 处受损'));
-    } else if (warnings > 0) {
-      dot.classList.add('yellow');
-      var cmd = document.createElement('span'); cmd.className = 'cmd'; cmd.textContent = '对AI说「标准化」';
-      statusEl.appendChild(cmd); statusEl.appendChild(document.createTextNode(' — ' + warnings + ' 处缺漏'));
-    } else {
-      dot.classList.add('green');
-      statusEl.textContent = total + ' 源 · 唯一真相源自洽';
-    }
-
-    // Build checklist
-    if (checksList) {
-      checksList.textContent = '';
-      allChecks.forEach(function(c) {
-        var li = document.createElement('li');
-        li.className = c.pass ? 'pass' : 'fail';
-        li.textContent = (c.pass ? '✓' : '✗') + ' ' + c.label + '：' + c.detail;
-        checksList.appendChild(li);
-      });
-      var legend = document.createElement('li'); legend.className = 'health-legend';
-      legend.innerHTML = '<b class="hl-red">●</b> 源架受损（重复URL / 缺URL / 非法值）→ <span class="say">对AI说「修闸门」</span><br>' +
-        '<b class="hl-yellow">●</b> 元数据不全（缺档位 / 缺类型 / 缺领域）→ <span class="say">对AI说「标准化」</span><br>' +
-        '<b class="hl-green">●</b> 唯一真相源自洽，无需操作';
-      checksList.appendChild(legend);
-    }
-  }).catch(function(err) {
-    dot.classList.remove('loading');
-    dot.classList.add('red');
-    statusEl.textContent = '无法连接 — 刷新试试';
-  });
-
-  // Click tracking: fire touch on every source link click
-  document.addEventListener('click', function(e) {
-    var link = e.target.closest('.src-url');
-    if (!link) return;
-    var fname = link.dataset.file;
-    if (!fname) return;
-    fetch('/sources/touch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ file: fname })
-    }).catch(function() { /* silent */ });
-  });
-});
-
-var heatMode = 'hot'; // 'hot' | 'cold'
-
-// Capture original server order on load
-(function() {
-  var rows = document.querySelectorAll('#listBody .row');
-  for (var i = 0; i < rows.length; i++) { rows[i].dataset.origOrder = i; }
-})();
-
-function toggleHeat() {
-  heatMode = heatMode === 'hot' ? 'cold' : 'hot';
-  var btn = document.getElementById('heatToggle');
-  btn.classList.remove('on');
-  if (heatMode === 'hot') {
-    btn.textContent = '热度↓';
-    btn.title = '当前：按热度降序——近30天点击最多的在最上面';
-  } else {
-    btn.textContent = '热度↑';
-    btn.title = '当前：按热度升序——近30天点击最少的在最上面';
-    btn.classList.add('on');
-  }
-
-  var list = document.getElementById('listBody');
-  var rows = Array.from(list.querySelectorAll('.row'));
-  rows.sort(function(a, b) {
-    var aC = parseInt(a.dataset.clicks, 10) || 0;
-    var bC = parseInt(b.dataset.clicks, 10) || 0;
-    return heatMode === 'hot' ? bC - aC : aC - bC;
-  });
-  rows.forEach(function(r) { list.appendChild(r); });
-  applyFilters();
-}
-</script>
+<script src="/app.js"></script>
 </body>
 </html>`;
 
-const SERVER_START_SCRIPT = `
-const SOURCES_DIR = '${SOURCES_DIR.replace(/\\/g, '\\\\')}';
-const TIER_ORDER = { S:0, A:1, X:2 };
-`;
 
 // ─── Auto-assign secondary domains (new 7-primary system) ───
 const TOP_DOMAINS = PRIMARY_ORDER;
@@ -794,12 +252,16 @@ function appFactory() {
   app.disable('x-powered-by');
   app.use(express.json());
 
-  // CSP: allow inline scripts & styles (current architecture), block everything else
+  // Static files: external CSS/JS + token files
+  app.use(express.static(path.join(__dirname, 'public')));
+  app.use('/tokens', express.static(path.join(__dirname, 'tokens')));
+
+  // CSP: allow inline scripts (chip onclick), block everything else. Styles external.
   app.use(function(req, res, next) {
     res.set('Content-Security-Policy',
       "default-src 'self'; " +
       "script-src 'self' 'unsafe-inline'; " +
-      "style-src 'self' 'unsafe-inline'; " +
+      "style-src 'self'; " +
       "img-src 'self' data: https:; " +
       "connect-src 'self'; " +
       "font-src 'self' data:; " +
@@ -1177,7 +639,7 @@ function appFactory() {
         const stype = s.source_type || '';
         return '<div class="row' + staleClass(s) + '" data-tier="' + esc(s.tier||'') + '" data-domain="' + esc(domainsArr.join(' ')) + '" data-type="' + esc(stype) + '" data-clicks="' + countRecentClicks(s) + '" data-text="' + esc((s.title||'') + ' ' + (s.url||'') + ' ' + (s.tags||[]).join(' ') + ' ' + domainsArr.join(' ')) + '">' +
           '<div class="tier-badge ' + badgeClass(s.tier) + '" title="' + (s.tier_override ? '人工锁定: ' + s.tier_override : '算法判定: 近30天点击' + (function(){var rc=countRecentClicks(s);return rc;})() + '次 (累计' + (s.click_count||0) + ')') + '">' + esc(s.tier||'?') + '</div>' +
-          '<div style="display:flex;align-items:center;gap:10px;"><img class="favicon" src="' + fv + '" width="20" height="20" loading="lazy" onerror="this.style.display=\'none\'"><div><div class="src-name">' + esc(s.title||s.file||'') + (function(){var rc=countRecentClicks(s);return rc>0?' <span class="click-badge'+(rc>=10?' click-hot':rc>=5?' click-warm':'')+'" title="近30天 '+rc+' 次 (累计'+(s.click_count||0)+')">'+rc+'</span>':'';})() + staleLabel(s) + '</div><a class="src-url" href="' + esc(hrefUrl(s.url||'')) + '" target="_blank" rel="noopener" data-file="' + esc(s.file||'') + '">' + esc(displayUrl(s.url||'')) + '</a>' + (s.desc ? '<div class="src-desc">' + esc(s.desc) + '</div>' : '') + '</div></div>' +
+          '<div class="src-info"><img class="favicon" src="' + fv + '" width="20" height="20" loading="lazy" onerror="this.style.display=\'none\'"><div><div class="src-name">' + esc(s.title||s.file||'') + (function(){var rc=countRecentClicks(s);return rc>0?' <span class="click-badge'+(rc>=10?' click-hot':rc>=5?' click-warm':'')+'" title="近30天 '+rc+' 次 (累计'+(s.click_count||0)+')">'+rc+'</span>':'';})() + staleLabel(s) + '</div><a class="src-url" href="' + esc(hrefUrl(s.url||'')) + '" target="_blank" rel="noopener" data-file="' + esc(s.file||'') + '">' + esc(displayUrl(s.url||'')) + '</a>' + (s.desc ? '<div class="src-desc">' + esc(s.desc) + '</div>' : '') + '</div></div>' +
           '<div class="domain-cell">' + domainBadges + '</div>' +
           '<div><span class="cell-chip clickable src-type" onclick="event.stopPropagation();setType(\'' + esc(stype) + '\')" title="按类型筛选：' + esc(stype) + '">' + esc(stype) + '</span></div>' +
           '<div><span class="cell-chip muted">' + strategy(s.source_type) + '</span></div>' +

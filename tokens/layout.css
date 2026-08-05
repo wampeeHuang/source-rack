@@ -61,13 +61,11 @@
 :root {
   /* 筛选栏 */
   --filter-bar-padding: var(--space-md) 0;
-  --filter-group-label: {
-    font-size: var(--text-xs);
-    color: var(--color-on-surface-variant);
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  };
+  --filter-label-font-size: var(--text-xs);
+  --filter-label-color: var(--color-on-surface-variant);
+  --filter-label-font-weight: 500;
+  --filter-label-text-transform: uppercase;
+  --filter-label-letter-spacing: 0.04em;
 
   /* 表格行 */
   --table-cell-padding: var(--space-sm) var(--space-md);
@@ -80,6 +78,56 @@
 
   /* 档位色彩 */
   --tier-s-color: var(--color-primary);
+  --tier-s-border: 1.5px solid var(--color-primary);
+  --tier-s-bg: var(--color-primary-container);
   --tier-a-color: var(--color-on-surface-variant);
+  --tier-a-border: 1px solid var(--color-outline);
+  --tier-a-bg: transparent;
   --tier-x-color: var(--color-error);
+  --tier-x-border: 1.5px solid var(--color-error);
+  --tier-x-bg: rgba(220, 38, 38, 0.04);
+
+  /* 筛选芯片交互态 */
+  --chip-bg: transparent;
+  --chip-border: 1px solid var(--color-outline);
+  --chip-color: var(--color-on-surface-variant);
+  --chip-active-bg: var(--color-on-surface);
+  --chip-active-color: var(--color-surface);
+  --chip-active-border: 1px solid var(--color-on-surface);
+  --chip-hover-bg: var(--color-surface-container-low);
+  --chip-hover-border: 1px solid var(--color-on-surface-variant);
+  --chip-dim-opacity: 0.25;
+
+  /* 表格 */
+  --table-header-bg: var(--color-on-surface);
+  --table-header-color: rgba(255, 255, 255, 0.5);
+  --row-hover-bg: var(--color-surface-container-low);
+  --row-stale-opacity: 0.5;
+
+  /* 表格列宽 */
+  --table-col-tier: 48px;
+  --table-col-source: 4fr;
+  --table-col-domain: 160px;
+  --table-col-type: 90px;
+  --table-col-strategy: 130px;
+  --table-col-tags: 2fr;
+
+  /* Click badge */
+  --click-warm-color: #d97706;
+  --click-hot-color: #ffffff;
+  --click-hot-bg: #ef4444;
+
+  /* Stale badge */
+  --stale-badge-color: var(--color-on-surface-variant);
+  --stale-badge-border: 1px solid var(--color-outline-variant);
+
+  /* Cell chips（行内 domain/type 微标签） */
+  --cell-chip-color: var(--color-on-surface-variant);
+  --cell-chip-border: 1px solid var(--color-outline-variant);
+
+  /* 文档页脚 */
+  --footer-collapsed-h: 36px;
+  --footer-expanded-max-h: 480px;
+  --footer-bg: var(--color-surface-container-low);
+  --footer-border: 1px solid var(--color-outline);
 }
