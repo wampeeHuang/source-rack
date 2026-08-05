@@ -7,9 +7,7 @@
     "start": "node server.js",
     "check": "node check.js",
     "standardize": "node standardize.js --dry-run",
-    "standardize:apply": "node standardize.js",
-    "dedup": "node dedup.js --dry-run",
-    "dedup:apply": "node dedup.js"
+    "standardize:apply": "node standardize.js"
   },
   "dependencies": {
     "express": "^4.18.0"

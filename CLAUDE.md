@@ -6,6 +6,8 @@ Web 面板：http://localhost:3098
 
 **审查机制**: `_review/` 目录存在时，先读 `_review/brief.md` 了解待审内容，反馈写入 `_review/findings.md`。
 
+**投料箱**: `inbox/` — 用户-Agent 交互投料区。用户把要给 Agent 的资料放这里，Agent 启动时检查。文件名即描述，处理完清空。
+
 ## 品牌套件
 
 本应用是一套个人品牌的一部分。品牌基因由版式画廊定义，所有应用共享。
