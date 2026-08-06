@@ -255,8 +255,8 @@ function appFactory() {
   app.use(express.json());
 
   // Static files: external CSS/JS + token files
-  app.use(express.static(path.join(__dirname, 'public')));
-  app.use('/tokens', express.static(path.join(__dirname, 'tokens')));
+  app.use(express.static(path.join(__dirname, 'assets')));
+  app.use('/tokens', express.static(path.join(__dirname, 'assets/tokens')));
 
   // CSP: no unsafe-inline. All JS in external files, event handlers via delegation.
   app.use(function(req, res, next) {

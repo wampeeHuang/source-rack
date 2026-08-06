@@ -1,6 +1,4 @@
 node_modules/
 _runtime/
-_review/*.json
-_review/*.txt
+_review/
 CHECKPOINT.md
-HANDOFF.md

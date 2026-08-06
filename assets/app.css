@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════
    Source Rack — 应用样式
    铁律：只用 var(--token)，不写裸值
-   品牌基因 → tokens/brand.css  ·  布局规则 → tokens/layout.css
+   品牌基因 → assets/tokens/brand.css  ·  布局规则 → assets/tokens/layout.css
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ── Reset & Base ── */

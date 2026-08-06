@@ -22,10 +22,10 @@ SVG 架构图：`references/architecture.svg`（唯一真相源）。server.js �
 
 ```
 品牌基因（layout-gallery/brand.json）    ← 唯一真相源
-  └→ tokens/brand.css                   ← 投影，勿直接改
+  └→ assets/tokens/brand.css             ← 投影，勿直接改
       颜色 13 · 字体 3 · 动效 4 · 阴影 2 · 圆角 3
 
-布局规则（tokens/layout.css）            ← 本应用真相源
+布局规则（assets/tokens/layout.css）      ← 本应用真相源
   字号 6 · 间距 9 · 页面结构 · 组件尺寸
 ```
 

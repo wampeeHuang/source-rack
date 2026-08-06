@@ -15,8 +15,8 @@
 
 ## 品牌变更后
 
-- [ ] `tokens/brand.css` 与画廊 `brand.json` 一致
-- [ ] 页面无裸色值：`grep -rP '#[0-9a-fA-F]{3,6}' public/app.css` → 无匹配
+- [ ] `assets/tokens/brand.css` 与画廊 `brand.json` 一致
+- [ ] 页面无裸色值：`grep -rP '#[0-9a-fA-F]{3,6}' assets/app.css` → 无匹配
 
 ## 架构变更后
 

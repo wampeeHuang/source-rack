@@ -16,13 +16,12 @@ npm run check    # 跑自检闸门
 
 ```
 source-rack/
-├── CLAUDE.md              ← AI 入口
+├── CLAUDE.md              ← AI 入口 · 文件夹宪法
 ├── server.js              ← 只读投影
 ├── domain-registry.js     ← 领域词表
 ├── references/            ← 规则文件（渐进披露）
 ├── scripts/               ← 闸门脚本
-├── tokens/                ← 设计 token（品牌 + 布局）
-├── public/                ← 前端静态资源
+├── assets/                ← 前端资源 + 设计令牌
 └── _runtime/              ← 会话临时文件
 ```
 
