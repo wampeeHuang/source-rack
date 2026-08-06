@@ -7,7 +7,7 @@
 
 ```
 source-rack/
-├── .gitignore
+├── .gitignore                ← 忽略规则
 ├── .project                 ← workspace 身份证
 ├── CLAUDE.md               ← 本文件
 ├── README.md                ← 人类用面板说明
@@ -22,8 +22,8 @@ source-rack/
 │       ├── brand.css       品牌基因（从画廊同步，只读）
 │       └── layout.css      布局变量（本项目定义）
 ├── domain-registry.js       ← 领域词表（7域 + OLD_TO_NEW 映射）
-├── package-lock.json
-├── package.json
+├── package-lock.json         ← 依赖锁定
+├── package.json              ← 项目元数据
 ├── references/             ← 长文规则（按需加载）
 │   ├── tier-system.md      档位定义 S/A/X
 │   ├── domains.md          领域分类 + Agent 写入流程
