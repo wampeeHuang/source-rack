@@ -243,23 +243,6 @@ function setupClickTracking() {
 // Documentation footer toggle
 // ═══════════════════════════════════════════════════════════════════
 
-function setupDocPanel() {
-  var toggle = document.getElementById('docToggle');
-  var content = document.getElementById('docContent');
-  if (!toggle || !content) return;
-  toggle.setAttribute('aria-expanded', 'false');
-  content.hidden = true;
-}
-
-function toggleDocPanel() {
-  var toggle = document.getElementById('docToggle');
-  var content = document.getElementById('docContent');
-  if (!toggle || !content) return;
-  var expanded = content.hidden;
-  content.hidden = !expanded;
-  toggle.setAttribute('aria-expanded', String(expanded));
-}
-
 // ═══════════════════════════════════════════════════════════════════
 // Bootstrap
 // ═══════════════════════════════════════════════════════════════════
@@ -275,5 +258,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
   fetchHealth();
   setupClickTracking();
-  setupDocPanel();
+
+  // Back to top visibility
+  var btn = document.getElementById('backToTop');
+  if (btn) {
+    window.addEventListener('scroll', function() {
+      btn.classList.toggle('visible', window.scrollY > 400);
+    });
+  }
 });

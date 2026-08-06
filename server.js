@@ -167,8 +167,11 @@ const HTML = `<!DOCTYPE html>
   </div>
 </div>
 
-<!-- ═══ Zone 3.5: Architecture Diagram ═══ -->
-  <div class="arch-section">
+<!-- ═══ Zone 4: Footer ═══ -->
+<footer class="doc-footer" id="docFooter">
+  <div class="doc-content" id="docContent">
+    <!-- Architecture Diagram -->
+    <div class="arch-section">
     <div class="arch-section-label">架构：信息源怎么流动</div>
     <svg viewBox="0 0 1480 340" class="arch-svg" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -237,16 +240,10 @@ const HTML = `<!DOCTYPE html>
     </svg>
   </div>
 
-<!-- ═══ Zone 4: Documentation Footer ═══ -->
-<footer class="doc-footer" id="docFooter">
-  <button class="doc-toggle" id="docToggle" onclick="toggleDocPanel()" aria-expanded="false">
-    <span>系统规则文档</span>
-    <span class="doc-toggle-chevron">&#x25B2;</span>
-  </button>
-  <div class="doc-content" id="docContent" hidden>
+    <!-- Rules Grid -->
     <div class="doc-grid">
-      <details class="doc-section" open>
-        <summary>收录标准</summary>
+      <div class="doc-section">
+        <div class="doc-section-title">收录标准</div>
         <ol class="doc-list">
           <li><strong>一手优先</strong> — 原创/权威源，不收转载聚合站</li>
           <li><strong>领域相关</strong> — 与当前工作领域至少一项交集</li>
@@ -254,9 +251,9 @@ const HTML = `<!DOCTYPE html>
           <li><strong>持续更新</strong> — 更新频率 ≥ 月更</li>
           <li><strong>URL 完整</strong> — 必须是完整 https:// 地址</li>
         </ol>
-      </details>
-      <details class="doc-section">
-        <summary>档位定义</summary>
+      </div>
+      <div class="doc-section">
+        <div class="doc-section-title">档位定义</div>
         <div class="doc-table-wrap">
           <table class="doc-table">
             <thead><tr><th>档位</th><th>含义</th><th>算法规则</th></tr></thead>
@@ -267,13 +264,13 @@ const HTML = `<!DOCTYPE html>
             </tbody>
           </table>
         </div>
-      </details>
-      <details class="doc-section">
-        <summary>领域分类</summary>
+      </div>
+      <div class="doc-section">
+        <div class="doc-section-title">领域分类</div>
         <p class="doc-text">两级分类体系。7个一级领域：AI、设计、电商、开发工具、内容平台、商业、知识库。每个一级下有闭合二级词表。完整标签全集定义在 <code>domain-registry.js</code>（唯一真相源），运行 <code>node -e "require('./domain-registry')"</code> 查看。</p>
-      </details>
-      <details class="doc-section">
-        <summary>新陈代谢规则</summary>
+      </div>
+      <div class="doc-section">
+        <div class="doc-section-title">新陈代谢规则</div>
         <div class="doc-table-wrap">
           <table class="doc-table">
             <thead><tr><th>条件</th><th>动作</th></tr></thead>
@@ -285,14 +282,14 @@ const HTML = `<!DOCTYPE html>
             </tbody>
           </table>
         </div>
-      </details>
+      </div>
     </div>
+
+    <div class="note">SOURCES_PLACEHOLDER_DIR · frontmatter 驱动 · 每个 .md 一个源</div>
   </div>
 </footer>
 
-<div class="container">
-  <div class="note">SOURCES_PLACEHOLDER_DIR · frontmatter 驱动 · 每个 .md 一个源</div>
-</div>
+<button class="back-to-top" id="backToTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="返回顶部">&#x25B2;</button>
 
 <script src="/app.js"></script>
 </body>
