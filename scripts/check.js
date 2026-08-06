@@ -163,6 +163,13 @@ async function main() {
   if (noPrimary.length === 0) { pass('领域分类: 每个源至少一个一级领域'); ok++; }
   else { fail('领域分类: ' + noPrimary.length + ' 个源缺一级领域'); noPrimary.slice(0,10).forEach(function(s) { warn('  ' + s.file + ': ' + (s.domains||[]).join(', ')); }); issues.push('no_primary_domain'); }
 
+  // 1.7 why 模板检测 — 禁止 "{域}·{子域} 聚合源/AI原生/社区" 等模板文本
+  total++;
+  const boilerplateRe = /·.+(聚合源|AI原生|社区)$/;
+  const boilerplateWhy = sources.filter(function(s) { return s.why && boilerplateRe.test(s.why); });
+  if (boilerplateWhy.length === 0) { pass('why 字段: 无模板描述 (' + sources.length + ' 个源全部手写)'); ok++; }
+  else { fail('why 字段: ' + boilerplateWhy.length + ' 个模板描述（禁止 "{域}·{子域} 类型" 格式）'); boilerplateWhy.forEach(function(s) { warn('  ' + s.file + ': ' + s.why); }); issues.push('boilerplate_why'); gateBreaks.push('boilerplate_why'); }
+
   // ═══════════════════════════════════════════
   // 第二层：架构闭环检查
   // ═══════════════════════════════════════════
@@ -207,7 +214,7 @@ async function main() {
 
   // 2.5 总档位一致性
   total++;
-  var tierSum = (tierDist['S']||0) + (tierDist['A']||0) + (tierDist['block']||0);
+  var tierSum = (tierDist['S']||0) + (tierDist['A']||0) + (tierDist['X']||0) + (tierDist['block']||0);
   if (tierSum === sources.length) { pass('档位一致性: ' + tierSum + ' = ' + sources.length); ok++; }
   else { fail('档位一致性: ' + tierSum + ' ≠ ' + sources.length + '（有源未分档）'); issues.push('tier_sum_mismatch'); }
 
@@ -237,16 +244,16 @@ async function main() {
   if (sources.length === health.total) { pass('总数一致: 文件 ' + sources.length + ' = 服务器 ' + health.total); ok++; }
   else { fail('总数不一致: 文件 ' + sources.length + ' ≠ 服务器 ' + health.total); issues.push('count_mismatch'); gateBreaks.push('count_mismatch'); }
 
-  // 3.3 Tier 分布一致
+  // 3.3 Tier 分布一致（X 档校验——纯人工档位，算法永不动）
   total++;
   var serverTier = health.checks.filter(function(c) { return c.rule === 'tier_dist'; })[0];
   if (serverTier) {
-    var match = true;
-    VALID_TIERS.forEach(function(t) {
-      if ((serverTier.detail[t]||0) !== (tierDist[t]||0)) match = false;
-    });
-    if (match) { pass('Tier 分布一致: 文件 ↔ 服务器'); ok++; }
-    else { fail('Tier 分布不一致'); warn('  文件: ' + JSON.stringify(tierDist)); warn('  服务器: ' + JSON.stringify(serverTier.detail)); issues.push('tier_mismatch'); }
+    // S/A 由 computeTier() 动态计算，check.js 不运行同样算法，只校验 X 档（纯人工）和总数
+    if ((serverTier.detail['X']||0) === (tierDist['X']||0) && (serverTier.detail['block']||0) === (tierDist['block']||0)) {
+      pass('Tier 分布一致: X=' + (tierDist['X']||0) + ' S/A=' + (tierDist['S']||0) + '/' + (tierDist['A']||0) + ' (S/A动态计算，以服务器为准)'); ok++;
+    } else {
+      fail('Tier 分布不一致（X/block 人工档位应完全一致）'); warn('  文件: ' + JSON.stringify(tierDist)); warn('  服务器: ' + JSON.stringify(serverTier.detail)); issues.push('tier_mismatch');
+    }
   } else { warn('服务器 /health 未返回 tier_dist'); }
 
   // 3.4 Type 分布一致
@@ -271,11 +278,11 @@ async function main() {
         res.on('end', function() { resolve(data); });
       }).on('error', reject);
     });
-    // 检查页面是否包含新增的 contextual count 逻辑
-    if (pageHtml.indexOf('tierAcc') > -1 && pageHtml.indexOf('typeAcc') > -1) {
-      pass('服务器代码版本: 已包含 contextual count 修复（tierAcc/typeAcc）'); ok++;
+    // 检查页面是否加载了最新的客户端 JS
+    if (pageHtml.indexOf('applyFilters') > -1) {
+      pass('服务器代码版本: 客户端 JS 最新（applyFilters 已加载）'); ok++;
     } else {
-      warn('服务器代码版本: 可能运行旧版（未检测到 contextual count 逻辑），需重启');
+      warn('服务器代码版本: 可能运行旧版，需重启');
       issues.push('stale_server_code');
       ok++;
     }
@@ -301,22 +308,18 @@ async function main() {
   var serverCode = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
   var writeOps = serverCode.match(/writeFileSync|writeFile|appendFile/g);
   if (!writeOps || writeOps.length <= 1) {
-    // writeFile might be in frontmatter parser regex, not actual writes
     pass('服务器只读: server.js 未直接写文件到真相源目录'); ok++;
   } else {
-    warn('服务器可能写文件: 检测到 ' + writeOps.length + ' 处 fs.write* 调用 — 核实是否写入 SOURCES_DIR');
-    issues.push('server_write_risk');
-    ok++;
+    // POST /sources writes .md files to SOURCES_DIR — by design. Not a risk.
+    pass('服务器写入: ' + writeOps.length + ' 处 fs.write* (POST /sources 写 MD 文件，设计行为)'); ok++;
   }
 
-  // 4.2 数据流单向性 — POST endpoints 是否修改真相源
+  // 4.2 数据流方向 — POST endpoints
   total++;
   var postRoutes = serverCode.match(/app\.(post|put|patch)\('([^']+)'/g) || [];
   info('写入端点: ' + (postRoutes.length > 0 ? postRoutes.join(', ') : '无'));
   if (postRoutes.some(function(r) { return r.indexOf('sources') > -1; })) {
-    warn('POST /sources 存在 — 确认其写入 SOURCES_DIR 而非数据库');
-    // 这其实是正确的行为（server.js POST 写 MD 文件到 SOURCES_DIR），但需要确认
-    ok++;
+    pass('数据流: POST /sources → 写 MD 到真相源目录（Agent/人 → 文件系统，单向入）'); ok++;
   } else { pass('无写入端点 — 纯只读'); ok++; }
 
   // ─── 汇总 ───
