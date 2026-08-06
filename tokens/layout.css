@@ -6,12 +6,12 @@
 
 :root {
   /* ── 字号刻度 — 数据工具专用（比画廊营销页面小一号） ── */
-  --text-xs: 10px;       /* 标签/辅助信息 */
-  --text-sm: 12px;       /* 表格元数据 */
-  --text-base: 13px;     /* 正文/表格行 */
-  --text-lg: 15px;       /* 区段标题 */
-  --text-xl: 18px;       /* 页面标题 */
-  --text-2xl: 22px;      /* Header 标题 */
+  --text-xs: 11px;       /* 标签/辅助信息 */
+  --text-sm: 13px;       /* 表格元数据/芯片 */
+  --text-base: 15px;     /* 正文/表格行 */
+  --text-lg: 17px;       /* 区段标题 */
+  --text-xl: 20px;       /* 页面标题 */
+  --text-2xl: 24px;      /* Header 标题 */
 
   /* ── 间距系统 — 紧凑数据布局 ── */
   --space-2xs: 2px;
@@ -24,7 +24,7 @@
   --space-3xl: 48px;
 
   /* ── 页面结构 ── */
-  --page-max-w: 1400px;          /* 最大内容宽（数据面板比营销页窄） */
+  --page-max-w: 1800px;          /* 最大内容宽 */
   --page-pad-x: 24px;            /* 页面水平内边距 */
   --header-h: 48px;              /* 顶部栏高度 */
   --footer-h: auto;              /* 底部栏高度（内容驱动） */
