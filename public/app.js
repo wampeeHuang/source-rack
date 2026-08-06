@@ -240,6 +240,37 @@ function setupClickTracking() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// Action delegation — replaces inline onclick handlers (CSP-safe)
+// ═══════════════════════════════════════════════════════════════════
+
+function setupActionDelegation() {
+  document.addEventListener('click', function(e) {
+    var el = e.target.closest('[data-action]');
+    if (!el) return;
+    e.stopPropagation();
+    e.preventDefault();
+    var action = el.dataset.action;
+    var value = el.dataset.value;
+    switch (action) {
+      case 'setTier': setTier(value); break;
+      case 'setDomain': setDomain(value); break;
+      case 'setType': setType(value); break;
+      case 'setSearch': setSearch(value); break;
+      case 'applyFilters': applyFilters(); break;
+      case 'toggleHeat': toggleHeat(); break;
+      case 'backToTop': window.scrollTo({top:0,behavior:'smooth'}); break;
+    }
+  });
+
+  // Favicon error fallback
+  document.addEventListener('error', function(e) {
+    if (e.target.hasAttribute('data-error-hide')) {
+      e.target.style.display = 'none';
+    }
+  }, true);
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // Documentation footer toggle
 // ═══════════════════════════════════════════════════════════════════
 
@@ -258,6 +289,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   fetchHealth();
   setupClickTracking();
+  setupActionDelegation();
 
   // Back to top visibility
   var btn = document.getElementById('backToTop');

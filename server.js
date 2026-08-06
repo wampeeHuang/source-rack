@@ -143,12 +143,12 @@ const HTML = `<!DOCTYPE html>
     <div class="filter-row" id="subDomainRow">DOMAIN_SUB_ROW</div>
     <div class="filter-row">
       <span class="filter-row-label">类型</span>
-      <span class="chip active" data-type="all" onclick="setType('all')">全部</span>
+      <span class="chip active" data-type="all" data-action="setType" data-value="all">全部</span>
     </div>
     <div class="filter-row">
       <span class="filter-row-label">搜索</span>
       <input type="text" id="searchInput" class="search-input" placeholder="输入关键词即时筛选…" oninput="applyFilters()">
-      <button class="search-btn" onclick="applyFilters()" title="筛选">&#x2315;</button>
+      <button class="search-btn" data-action="applyFilters" title="筛选">&#x2315;</button>
     </div>
   </nav>
 
@@ -158,7 +158,7 @@ const HTML = `<!DOCTYPE html>
       <div class="list-header-cell col-tier">档位</div>
       <div class="list-header-cell col-source">
         来源
-        <a class="heat-toggle" id="heatToggle" href="javascript:" onclick="toggleHeat()" title="当前：按热度降序——近30天点击最多的在最上面">热度↓</a>
+        <a class="heat-toggle" id="heatToggle" href="#" data-action="toggleHeat" title="当前：按热度降序——近30天点击最多的在最上面">热度↓</a>
       </div>
       <div class="list-header-cell col-domain">领域</div>
       <div class="list-header-cell col-type">类型</div>
@@ -227,7 +227,7 @@ const HTML = `<!DOCTYPE html>
   </div>
 </footer>
 
-<button class="back-to-top" id="backToTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="返回顶部">&#x25B2;</button>
+<button class="back-to-top" id="backToTop" data-action="backToTop" title="返回顶部">&#x25B2;</button>
 
 <script src="/app.js"></script>
 </body>
@@ -261,11 +261,11 @@ function appFactory() {
   app.use(express.static(path.join(__dirname, 'public')));
   app.use('/tokens', express.static(path.join(__dirname, 'tokens')));
 
-  // CSP: allow inline scripts (chip onclick), block everything else. Styles external.
+  // CSP: no unsafe-inline. All JS in external files, event handlers via delegation.
   app.use(function(req, res, next) {
     res.set('Content-Security-Policy',
       "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline'; " +
+      "script-src 'self'; " +
       "style-src 'self'; " +
       "img-src 'self' data: https:; " +
       "connect-src 'self'; " +
@@ -521,13 +521,13 @@ function appFactory() {
       return '';
     }
 
-    let topChipsHTML = '<span class="filter-row-label">领域</span>\n<span class="chip active" data-domain="all" onclick="setDomain(\'all\')">全部</span>\n';
+    let topChipsHTML = '<span class="filter-row-label">领域</span>\n<span class="chip active" data-domain="all" data-action="setDomain" data-value="all">全部</span>\n';
     DOMAIN_ORDER.forEach(function(d) {
       const n = domainCounts[d] || 0;
       const dim = n === 0 ? ' dim' : '';
       const tip = domainTips[d] || '';
       const icon = DOMAIN_ICONS[d] ? '<span class="domain-icon">' + DOMAIN_ICONS[d] + '</span>' : '';
-      topChipsHTML += '<span class="chip' + dim + '" data-domain="' + esc(d) + '" onclick="setDomain(\'' + esc(d) + '\')"' + (tip ? ' data-tip="' + esc(tip) + '"' : '') + '>' + icon + esc(d) + ' <strong>' + n + '</strong></span>\n';
+      topChipsHTML += '<span class="chip' + dim + '" data-domain="' + esc(d) + '" data-action="setDomain" data-value="' + esc(d) + '"' + (tip ? ' data-tip="' + esc(tip) + '"' : '') + '>' + icon + esc(d) + ' <strong>' + n + '</strong></span>\n';
     });
 
     const subList = Object.keys(secondaryCounts)
@@ -541,7 +541,7 @@ function appFactory() {
         const parents = secondaryParents[d] ? Object.keys(secondaryParents[d]).join(' ') : '';
         const parentCountsJson = secondaryParents[d] ? JSON.stringify(secondaryParents[d]).replace(/"/g, '&quot;') : '{}';
         const icon = domainIcon(d);
-        subChipsHTML += '<span class="chip sub-chip" data-domain="' + esc(d) + '" data-parents="' + esc(parents) + '" data-global-count="' + n + '" data-parent-counts="' + parentCountsJson + '" onclick="setDomain(\'' + esc(d) + '\')">' + icon + esc(d) + ' <strong>' + n + '</strong></span>\n';
+        subChipsHTML += '<span class="chip sub-chip" data-domain="' + esc(d) + '" data-parents="' + esc(parents) + '" data-global-count="' + n + '" data-parent-counts="' + parentCountsJson + '" data-action="setDomain" data-value="' + esc(d) + '">' + icon + esc(d) + ' <strong>' + n + '</strong></span>\n';
       });
     }
 
@@ -554,11 +554,11 @@ function appFactory() {
       A: '算法判定：默认档位。新源从此起步，持续使用冲 S，不用停留在 A',
       X: '纯人工档位。只有 tier_override: X 才会进入。算法永不会自动标记 X',
     };
-    let tierChipsHTML = '<span class="filter-row-label">档位</span>\n<span class="chip active" data-tier="all" onclick="setTier(\'all\')">全部</span>\n';
+    let tierChipsHTML = '<span class="filter-row-label">档位</span>\n<span class="chip active" data-tier="all" data-action="setTier" data-value="all">全部</span>\n';
     ['S', 'A', 'X'].forEach(function(t) {
       const n = tierCounts[t] || 0;
       const tip = tierTips[t] || '';
-      tierChipsHTML += '<span class="chip" data-tier="' + t + '" onclick="setTier(\'' + t + '\')"' + (tip ? ' data-tip="' + esc(tip) + '"' : '') + '>' + tierLabels[t] + ' <strong>' + n + '</strong></span>\n';
+      tierChipsHTML += '<span class="chip" data-tier="' + t + '" data-action="setTier" data-value="' + t + '"' + (tip ? ' data-tip="' + esc(tip) + '"' : '') + '>' + tierLabels[t] + ' <strong>' + n + '</strong></span>\n';
     });
     tierChipsHTML += '<span class="count-badge" id="countDisplay"></span>';
 
@@ -572,12 +572,12 @@ function appFactory() {
       '社区': '用户生成内容社区 · 需自行评估置信度 · 搜索: 搜+置信度',
       'AI原生': 'AI 驱动的搜索/生成工具 · 抓取: API/结构化',
     };
-    let typeChips = '<span class="chip active" data-type="all" onclick="setType(\'all\')">全部</span>\n';
+    let typeChips = '<span class="chip active" data-type="all" data-action="setType" data-value="all">全部</span>\n';
     const typeOrder = ['权威源', '聚合源', '平台', '社区', 'AI原生'];
     typeOrder.forEach(function(t) {
       const n = types[t] || 0;
       const tip = typeTips[t] || '';
-      if (n > 0) typeChips += '<span class="chip" data-type="' + esc(t) + '" onclick="setType(\'' + esc(t) + '\')"' + (tip ? ' data-tip="' + esc(tip) + '"' : '') + '>' + esc(t) + ' <strong>' + n + '</strong></span>\n';
+      if (n > 0) typeChips += '<span class="chip" data-type="' + esc(t) + '" data-action="setType" data-value="' + esc(t) + '"' + (tip ? ' data-tip="' + esc(tip) + '"' : '') + '>' + esc(t) + ' <strong>' + n + '</strong></span>\n';
     });
 
     // Build rows
@@ -631,7 +631,7 @@ function appFactory() {
       ? '<div class="empty">暂无信息源 · 在 ' + SOURCES_DIR + ' 下创建 .md 文件</div>'
       : sources.map(function(s) {
         const tags = (Array.isArray(s.tags) ? s.tags : []).map(function(t) {
-          return '<span class="tag clickable" onclick="event.stopPropagation();setSearch(\'' + esc(t) + '\')">' + esc(t) + '</span>';
+          return '<span class="tag clickable" data-action="setSearch" data-value="' + esc(t) + '">' + esc(t) + '</span>';
         }).join('');
         // Normalized domain display: primary + secondary + cross
         const domainsArr = s._primary ? [s._primary] : [];
@@ -639,14 +639,14 @@ function appFactory() {
         if (s._crossTags) domainsArr.push.apply(domainsArr, s._crossTags);
         const domainBadges = domainsArr.length === 0
           ? '<span class="cell-chip muted">—</span>'
-          : domainsArr.map(function(d) { return '<span class="cell-chip clickable domain-badge" onclick="event.stopPropagation();setDomain(\'' + esc(d) + '\')" title="按领域筛选：' + esc(d) + '">' + esc(d) + '</span>'; }).join('');
+          : domainsArr.map(function(d) { return '<span class="cell-chip clickable domain-badge" data-action="setDomain" data-value="' + esc(d) + '" title="按领域筛选：' + esc(d) + '">' + esc(d) + '</span>'; }).join('');
         const fv = favicon(s.url);
         const stype = s.source_type || '';
         return '<div class="row' + staleClass(s) + '" data-tier="' + esc(s.tier||'') + '" data-domain="' + esc(domainsArr.join(' ')) + '" data-type="' + esc(stype) + '" data-clicks="' + countRecentClicks(s) + '" data-text="' + esc((s.title||'') + ' ' + (s.url||'') + ' ' + (s.tags||[]).join(' ') + ' ' + domainsArr.join(' ')) + '">' +
           '<div class="tier-badge ' + badgeClass(s.tier) + '" title="' + (s.tier_override ? '人工锁定: ' + s.tier_override : '算法判定: 近30天点击' + (function(){var rc=countRecentClicks(s);return rc;})() + '次 (累计' + (s.click_count||0) + ')') + '">' + esc(s.tier||'?') + '</div>' +
           '<div class="src-info"><img class="favicon" src="' + fv + '" width="20" height="20" loading="lazy" onerror="this.style.display=\'none\'"><div><div class="src-name">' + esc(s.title||s.file||'') + (function(){var rc=countRecentClicks(s);return rc>0?' <span class="click-badge'+(rc>=10?' click-hot':rc>=5?' click-warm':'')+'" title="近30天 '+rc+' 次 (累计'+(s.click_count||0)+')">'+rc+'</span>':'';})() + staleLabel(s) + '</div><a class="src-url" href="' + esc(hrefUrl(s.url||'')) + '" target="_blank" rel="noopener" data-file="' + esc(s.file||'') + '">' + esc(displayUrl(s.url||'')) + '</a>' + (s.desc ? '<div class="src-desc">' + esc(s.desc) + '</div>' : '') + '</div></div>' +
           '<div class="domain-cell">' + domainBadges + '</div>' +
-          '<div><span class="cell-chip clickable src-type" onclick="event.stopPropagation();setType(\'' + esc(stype) + '\')" title="按类型筛选：' + esc(stype) + '">' + esc(stype) + '</span></div>' +
+          '<div><span class="cell-chip clickable src-type" data-action="setType" data-value="' + esc(stype) + '" title="按类型筛选：' + esc(stype) + '">' + esc(stype) + '</span></div>' +
           '<div><span class="cell-chip muted">' + strategy(s.source_type) + '</span></div>' +
           '<div class="tag-cell">' + tags + '</div>' +
         '</div>';
@@ -660,7 +660,7 @@ function appFactory() {
     html = html.replace('TIER_CHIPS_ROW', tierChipsHTML);
     html = html.replace('DOMAIN_TOP_ROW', topChipsHTML);
     html = html.replace('DOMAIN_SUB_ROW', subChipsHTML);
-    html = html.replace('<span class="chip active" data-type="all" onclick="setType(\'all\')">全部</span>',
+    html = html.replace('<span class="chip active" data-type="all" data-action="setType" data-value="all">全部</span>',
       typeChips);
 
     res.set('Cache-Control', 'no-cache');

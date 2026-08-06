@@ -52,6 +52,11 @@
   /* ── Header ── */
   --header-logo-gap: 10px;       /* Logo 与标题间距 */
   --header-status-gap: 16px;     /* 状态指示器间距 */
+
+  /* ── Font override — 系统字体优先（平台原生hinting > 通用字体） ── */
+  --font-body: "Segoe UI", "Microsoft YaHei UI", "PingFang SC", system-ui, "Noto Sans SC", sans-serif;
+  --font-display: "Songti SC", "SimSun", "Noto Serif SC", serif;
+  --font-mono: "Cascadia Code", "Consolas", "SF Mono", ui-monospace, "IBM Plex Mono", monospace;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
