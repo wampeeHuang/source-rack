@@ -311,7 +311,7 @@ function initGraph() {
   var minCount = nodes[nodes.length - 1].count;
   var countRange = maxCount - minCount || 1;
 
-  // Spiral initial placement — stable starting positions
+  // Spiral initial placement — stay within bounds
   var cx = 400, cy = 300;
   graphNodes = nodes.map(function(n, i) {
     var fontSize = 10 + ((n.count - minCount) / countRange) * 8;
@@ -321,13 +321,15 @@ function initGraph() {
       tw += (code > 127) ? fontSize * 1.0 : fontSize * 0.6;
     }
     var r = Math.max(16, tw / 2 + 8);
-    var angle = i * 2.4; // golden-angle-ish spiral
-    var radius = 40 + i * 8;
+    var angle = i * 2.4;
+    var radius = Math.min(40 + i * 8, 380);
+    var x = cx + Math.cos(angle) * radius;
+    var y = cy + Math.sin(angle) * radius;
+    x = Math.max(r + 10, Math.min(800 - r - 10, x));
+    y = Math.max(r + 10, Math.min(600 - r - 10, y));
     return {
       id: n.id, count: n.count, r: r, fontSize: fontSize, fixed: false,
-      x: cx + Math.cos(angle) * radius,
-      y: cy + Math.sin(angle) * radius,
-      vx: 0, vy: 0
+      x: x, y: y, vx: 0, vy: 0
     };
   });
 
@@ -378,22 +380,24 @@ function simulateTick() {
     ni.vx += (cx - ni.x) * 0.0006;
     ni.vy += (cy - ni.y) * 0.0006;
 
-    // Repulsion (gentle)
+    // Repulsion — no overlap allowed
     for (var j = 0; j < n; j++) {
       if (i === j) continue;
       var dx = ni.x - nodes[j].x;
       var dy = ni.y - nodes[j].y;
       var dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      var minDist = ni.r + nodes[j].r + 4;
-      if (dist < minDist) dist = minDist;
-      var force = 350 / (dist * dist);
+      var minDist = ni.r + nodes[j].r + 6;
+      if (dist < 0.5) dist = 0.5;
+      var force = 600 / (dist * dist);
+      // Extra push for overlapping circles
+      if (dist < minDist) force += (minDist - dist) * 3;
       ni.vx += (dx / dist) * force;
       ni.vy += (dy / dist) * force;
     }
 
     // Micro-jiggle — "breathing" organic feel
-    ni.vx += (Math.random() - 0.5) * 0.06;
-    ni.vy += (Math.random() - 0.5) * 0.06;
+    ni.vx += (Math.random() - 0.5) * 0.04;
+    ni.vy += (Math.random() - 0.5) * 0.04;
   }
 
   // Edge attraction
@@ -422,8 +426,12 @@ function simulateTick() {
     if (speed > 4) { node.vx *= 4 / speed; node.vy *= 4 / speed; }
     node.x += node.vx;
     node.y += node.vy;
-    node.x = Math.max(node.r, Math.min(w - node.r, node.x));
-    node.y = Math.max(node.r, Math.min(h - node.r, node.y));
+    // Strict bounds with margin — reset velocity on hit
+    var margin = 10;
+    if (node.x < node.r + margin) { node.x = node.r + margin; node.vx = 0; }
+    if (node.x > w - node.r - margin) { node.x = w - node.r - margin; node.vx = 0; }
+    if (node.y < node.r + margin) { node.y = node.r + margin; node.vy = 0; }
+    if (node.y > h - node.r - margin) { node.y = h - node.r - margin; node.vy = 0; }
   }
 }
 

@@ -170,7 +170,7 @@ const HTML = `<!DOCTYPE html>
 
 <!-- ═══ Graph View ═══ -->
 <div class="graph-container" id="graphView" hidden>
-  <aside class="graph-panel" id="graphPanel">
+  <aside class="graph-panel collapsed" id="graphPanel">
     <div class="graph-panel-header">
       <h3 id="graphPanelTitle">标签节点</h3>
       <button class="graph-panel-clear" data-action="graphPanelClear" title="清除选择">&#x2715;</button>
@@ -181,7 +181,7 @@ const HTML = `<!DOCTYPE html>
   </aside>
   <div class="graph-resize-handle" id="graphResizeHandle"></div>
   <div class="graph-svg-area">
-    <svg id="graphSvg" viewBox="0 0 800 600" preserveAspectRatio="xMinYMid meet">
+    <svg id="graphSvg" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet">
       <g id="graphWorld"></g>
     </svg>
   </div>

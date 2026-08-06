@@ -797,7 +797,7 @@ a.heat-toggle.on { color: var(--color-primary); }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-sm) var(--space-md);
+  padding: var(--space-lg) var(--space-lg);
   border-bottom: 1px solid var(--color-outline-variant);
   background: var(--color-surface);
   flex-shrink: 0;
