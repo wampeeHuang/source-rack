@@ -103,8 +103,8 @@ const HTML = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>信息源管理 — Source Rack</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='3' fill='%233D6B4A'/%3E%3Ctext x='16' y='23' text-anchor='middle' fill='white' font-family='serif' font-size='20' font-weight='700'%3E源%3C/text%3E%3C/svg%3E">
+<title>Source Rack — 信息源管理</title>
+<link rel="icon" type="image/svg+xml" href="/logo.svg">
 <link rel="stylesheet" href="/tokens/brand.css">
 <link rel="stylesheet" href="/tokens/layout.css">
 <link rel="stylesheet" href="/app.css">
@@ -114,13 +114,10 @@ const HTML = `<!DOCTYPE html>
 <!-- ═══ Zone 1: Header ═══ -->
 <header class="header">
   <div class="header-brand">
-    <svg class="logo-mark" width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-      <rect class="logo-tile" width="32" height="32" rx="3" fill="#3D6B4A"/>
-      <text x="16" y="23" text-anchor="middle" fill="#fff" font-family="serif" font-size="20" font-weight="700">源</text>
-    </svg>
+    <img class="logo-mark" src="/logo.svg" width="32" height="32" alt="Source Rack">
     <div class="header-title">
-      <h1>信息源管理</h1>
-      <div class="header-subtitle">Source Rack</div>
+      <h1>Source Rack</h1>
+      <div class="header-subtitle">信息源管理</div>
       <div class="header-tagline">策展即权力，分类即导航</div>
     </div>
   </div>
@@ -285,13 +282,16 @@ function appFactory() {
     const b = req.body;
     var errors = [];
 
-    if (!b.title || typeof b.title !== 'string') errors.push('title is required');
-    if (!b.why || typeof b.why !== 'string' || b.why.trim().length < 6) errors.push('why is required (min 6 chars)');
-    if (!VALID_TIERS.includes(b.tier)) errors.push('tier must be S, A, or X');
-    if (!Array.isArray(b.domains) || b.domains.length === 0) errors.push('domains must be a non-empty array');
-    if (!VALID_TYPES.includes(b.source_type)) errors.push('source_type invalid: must be 权威源|聚合源|平台|社区|AI原生');
-    if (!Array.isArray(b.tags) || b.tags.length === 0) errors.push('tags must be a non-empty array');
-
+    // Auto-fill defaults for missing fields — only URL is required
+    if (!b.title || typeof b.title !== 'string') {
+      var host = (b.url || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+      b.title = host || '未命名来源';
+    }
+    if (!b.why || typeof b.why !== "string") b.why = "待补充";
+    if (!VALID_TIERS.includes(b.tier)) b.tier = "A";
+    if (!Array.isArray(b.domains) || b.domains.length === 0) b.domains = ["参考"];
+    if (!VALID_TYPES.includes(b.source_type)) b.source_type = "聚合源";
+    if (!Array.isArray(b.tags) || b.tags.length === 0) b.tags = ["未分类"];
     // URL validation — enforce https://, reject file:// and bare domains
     if (!b.url || typeof b.url !== 'string') {
       errors.push('url is required');
