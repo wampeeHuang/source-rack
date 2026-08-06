@@ -609,14 +609,15 @@ function appFactory() {
     function favicon(url) {
       if (!url) return '';
       const host = url.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+      const google = 'https://www.google.com/s2/favicons?domain=' + host + '&sz=32';
       const letter = (host[0] || '?').toUpperCase();
-      // Inline SVG placeholder — no external requests, GFW-safe
       const colors = ['#d97757','#509070','#4a7db0','#b0885c','#7b68ae','#c4576a','#5a8a6a','#b8804e'];
       var hash = 0;
       for (var i = 0; i < host.length; i++) { hash = ((hash << 5) - hash) + host.charCodeAt(i); hash |= 0; }
       const color = colors[Math.abs(hash) % colors.length];
       const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><rect width="20" height="20" rx="4" fill="' + color + '" opacity="0.15"/><text x="10" y="14" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="600" fill="' + color + '">' + esc(letter) + '</text></svg>';
-      return 'data:image/svg+xml,' + encodeURIComponent(svg);
+      const fallback = 'data:image/svg+xml,' + encodeURIComponent(svg);
+      return { src: google, fallback: fallback };
     }
     function displayUrl(url) {
       if (!url) return '';
@@ -644,7 +645,7 @@ function appFactory() {
         const stype = s.source_type || '';
         return '<div class="row' + staleClass(s) + '" data-tier="' + esc(s.tier||'') + '" data-domain="' + esc(domainsArr.join(' ')) + '" data-type="' + esc(stype) + '" data-clicks="' + countRecentClicks(s) + '" data-text="' + esc((s.title||'') + ' ' + (s.url||'') + ' ' + (s.tags||[]).join(' ') + ' ' + domainsArr.join(' ')) + '">' +
           '<div class="tier-badge ' + badgeClass(s.tier) + '" title="' + (s.tier_override ? '人工锁定: ' + s.tier_override : '算法判定: 近30天点击' + (function(){var rc=countRecentClicks(s);return rc;})() + '次 (累计' + (s.click_count||0) + ')') + '">' + esc(s.tier||'?') + '</div>' +
-          '<div class="src-info"><img class="favicon" src="' + fv + '" width="20" height="20" loading="lazy" onerror="this.style.display=\'none\'"><div><div class="src-name">' + esc(s.title||s.file||'') + (function(){var rc=countRecentClicks(s);return rc>0?' <span class="click-badge'+(rc>=10?' click-hot':rc>=5?' click-warm':'')+'" title="近30天 '+rc+' 次 (累计'+(s.click_count||0)+')">'+rc+'</span>':'';})() + staleLabel(s) + '</div><a class="src-url" href="' + esc(hrefUrl(s.url||'')) + '" target="_blank" rel="noopener" data-file="' + esc(s.file||'') + '">' + esc(displayUrl(s.url||'')) + '</a>' + (s.desc ? '<div class="src-desc">' + esc(s.desc) + '</div>' : '') + '</div></div>' +
+          '<div class="src-info"><img class="favicon" src="' + esc(fv.src) + '" width="20" height="20" loading="lazy" onerror="this.onerror=null;this.src=\'' + fv.fallback + '\'"><div><div class="src-name">' + esc(s.title||s.file||'') + (function(){var rc=countRecentClicks(s);return rc>0?' <span class="click-badge'+(rc>=10?' click-hot':rc>=5?' click-warm':'')+'" title="近30天 '+rc+' 次 (累计'+(s.click_count||0)+')">'+rc+'</span>':'';})() + staleLabel(s) + '</div><a class="src-url" href="' + esc(hrefUrl(s.url||'')) + '" target="_blank" rel="noopener" data-file="' + esc(s.file||'') + '">' + esc(displayUrl(s.url||'')) + '</a>' + (s.desc ? '<div class="src-desc">' + esc(s.desc) + '</div>' : '') + '</div></div>' +
           '<div class="domain-cell">' + domainBadges + '</div>' +
           '<div><span class="cell-chip clickable src-type" data-action="setType" data-value="' + esc(stype) + '" title="按类型筛选：' + esc(stype) + '">' + esc(stype) + '</span></div>' +
           '<div><span class="cell-chip muted">' + strategy(s.source_type) + '</span></div>' +
