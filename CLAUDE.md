@@ -7,13 +7,23 @@
 
 ```
 source-rack/
-├── CLAUDE.md               ← 本文件
-├── server.js               ← Express 入口
-├── domain-registry.js       ← 领域词表（7域 + OLD_TO_NEW 映射）
-├── package.json
+├── .gitignore
 ├── .project                 ← workspace 身份证
+├── CLAUDE.md               ← 本文件
 ├── README.md                ← 人类用面板说明
-│
+├── _runtime/               ← 会话临时（gitignored）
+│   ├── CHECKPOINT.md       自动写入
+│   └── HANDOFF.md          会话交接
+├── assets/                 ← 前端资源 + 设计令牌
+│   ├── app.css             全部样式（token-only）
+│   ├── app.js              客户端逻辑（事件委托）
+│   ├── logo.svg            favicon + header logo
+│   └── tokens/
+│       ├── brand.css       品牌基因（从画廊同步，只读）
+│       └── layout.css      布局变量（本项目定义）
+├── domain-registry.js       ← 领域词表（7域 + OLD_TO_NEW 映射）
+├── package-lock.json
+├── package.json
 ├── references/             ← 长文规则（按需加载）
 │   ├── tier-system.md      档位定义 S/A/X
 │   ├── domains.md          领域分类 + Agent 写入流程
@@ -24,22 +34,10 @@ source-rack/
 │   ├── checklist.md        门禁清单
 │   ├── maintenance.md      踩坑记录
 │   └── architecture.svg    架构图
-│
 ├── scripts/                ← 可执行闸门
 │   ├── check.js            22项检查，exit 0 = 通过
 │   └── standardize.js      批量标准化
-│
-├── assets/                 ← 前端资源 + 设计令牌
-│   ├── app.css             全部样式（token-only）
-│   ├── app.js              客户端逻辑（事件委托）
-│   ├── logo.svg            favicon + header logo
-│   └── tokens/
-│       ├── brand.css       品牌基因（从画廊同步，只读）
-│       └── layout.css      布局变量（本项目定义）
-│
-└── _runtime/               ← 会话临时（gitignored）
-    ├── CHECKPOINT.md       自动写入
-    └── HANDOFF.md          会话交接
+└── server.js               ← Express 入口
 ```
 
 ## 四槽位
