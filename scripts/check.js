@@ -1,7 +1,7 @@
 // Source Rack self-check — data integrity + architecture health
 // 唯一真相源: D:/Obsidian/wiki/entities/sources/*.md
 // 服务器只读不写。这个脚本独立于 server.js，直接读文件系统。
-// Usage: node D:/projects/source-rack/check.js
+// Usage: node D:/workspace/source-rack/scripts/check.js
 
 const fs = require('fs');
 const path = require('path');
@@ -11,7 +11,7 @@ const SOURCES_DIR = process.env.SOURCES_DIR || 'D:/Obsidian/wiki/entities/source
 const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3098';
 const VALID_TIERS = ['S', 'A', 'X', 'block'];
 const VALID_TYPES = ['权威源', '聚合源', '平台', '社区', 'AI原生', '工具', '模板库', '工具站'];
-const { PRIMARY_ORDER, isValidPrimary, normalizeDomains, SECONDARY_REGISTRY } = require('./domain-registry.js');
+const { PRIMARY_ORDER, isValidPrimary, normalizeDomains, SECONDARY_REGISTRY } = require('../domain-registry.js');
 const DOMAIN_ORDER = PRIMARY_ORDER;
 
 // ─── YAML frontmatter parser (same as server.js, kept independent) ───
@@ -298,7 +298,7 @@ async function main() {
 
   // 4.1 服务器只读检查 — server.js 不应包含写文件到 SOURCES_DIR 的逻辑
   total++;
-  var serverCode = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  var serverCode = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
   var writeOps = serverCode.match(/writeFileSync|writeFile|appendFile/g);
   if (!writeOps || writeOps.length <= 1) {
     // writeFile might be in frontmatter parser regex, not actual writes

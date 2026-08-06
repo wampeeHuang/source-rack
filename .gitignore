@@ -2,3 +2,5 @@ node_modules/
 _runtime/
 _review/*.json
 _review/*.txt
+CHECKPOINT.md
+HANDOFF.md

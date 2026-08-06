@@ -1,0 +1,65 @@
+    <svg viewBox="0 0 1480 340" class="arch-svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrowHead" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+          <polygon points="0 0, 10 4, 0 8" fill="var(--color-primary)"/>
+        </marker>
+        <marker id="arrowFeedback" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+          <polygon points="0 0, 10 4, 0 8" fill="#999"/>
+        </marker>
+        <linearGradient id="pillGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#d97757"/>
+          <stop offset="100%" stop-color="var(--color-primary)"/>
+        </linearGradient>
+      </defs>
+
+      <!-- Node 1: 发现 -->
+      <rect x="30" y="75" width="220" height="90" rx="45" fill="url(#pillGrad)" stroke="#d97757" stroke-width="2"/>
+      <text x="140" y="112" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="17" font-weight="700">01 · 发现</text>
+      <text x="140" y="135" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-family="system-ui,sans-serif" font-size="13">AI 对话 / 用户推荐</text>
+
+      <line x1="250" y1="120" x2="335" y2="120" stroke="var(--color-primary)" stroke-width="2" marker-end="url(#arrowHead)"/>
+
+      <!-- Node 2: 收录 -->
+      <rect x="345" y="75" width="220" height="90" rx="6" fill="var(--color-surface)" stroke="var(--color-primary)" stroke-width="2"/>
+      <rect x="345" y="75" width="6" height="90" rx="3" fill="var(--color-primary)"/>
+      <text x="455" y="112" text-anchor="middle" fill="var(--color-on-surface)" font-family="system-ui,sans-serif" font-size="17" font-weight="700">02 · 收录</text>
+      <text x="455" y="135" text-anchor="middle" fill="var(--color-on-surface-variant)" font-family="system-ui,sans-serif" font-size="13">POST /sources 校验落盘</text>
+
+      <line x1="565" y1="120" x2="625" y2="120" stroke="var(--color-primary)" stroke-width="2" marker-end="url(#arrowHead)"/>
+
+      <!-- Node 3: 存储 -->
+      <path d="M 635,80 A 110,15 0 0,0 855,80 L 855,150 A 110,15 0 0,1 635,150 Z" fill="var(--color-primary-container)" stroke="var(--color-primary)" stroke-width="2"/>
+      <ellipse cx="745" cy="80" rx="110" ry="15" fill="var(--color-primary-container)" stroke="var(--color-primary)" stroke-width="2"/>
+      <text x="745" y="110" text-anchor="middle" fill="var(--color-on-surface)" font-family="system-ui,sans-serif" font-size="17" font-weight="700">03 · 存储</text>
+      <text x="745" y="133" text-anchor="middle" fill="var(--color-on-surface-variant)" font-family="system-ui,sans-serif" font-size="13">Obsidian .md YAML frontmatter</text>
+
+      <line x1="865" y1="120" x2="925" y2="120" stroke="var(--color-primary)" stroke-width="2" marker-end="url(#arrowHead)"/>
+
+      <!-- Node 4: 查询 -->
+      <rect x="935" y="75" width="220" height="90" rx="6" fill="var(--color-surface)" stroke="var(--color-primary)" stroke-width="2"/>
+      <rect x="935" y="75" width="6" height="90" rx="3" fill="var(--color-primary)"/>
+      <text x="1045" y="112" text-anchor="middle" fill="var(--color-on-surface)" font-family="system-ui,sans-serif" font-size="17" font-weight="700">04 · 查询</text>
+      <text x="1045" y="135" text-anchor="middle" fill="var(--color-on-surface-variant)" font-family="system-ui,sans-serif" font-size="13">面板过滤 + AI grep 检索</text>
+
+      <line x1="1155" y1="120" x2="1215" y2="120" stroke="var(--color-primary)" stroke-width="2" marker-end="url(#arrowHead)"/>
+
+      <!-- Node 5: 代谢 -->
+      <rect x="1225" y="75" width="220" height="90" rx="6" fill="var(--color-surface)" stroke="var(--color-primary)" stroke-width="2"/>
+      <rect x="1225" y="75" width="6" height="90" rx="3" fill="var(--color-primary)"/>
+      <text x="1335" y="112" text-anchor="middle" fill="var(--color-on-surface)" font-family="system-ui,sans-serif" font-size="17" font-weight="700">05 · 代谢</text>
+      <text x="1335" y="135" text-anchor="middle" fill="var(--color-on-surface-variant)" font-family="system-ui,sans-serif" font-size="13">last_used 排序 · 沉底淘汰</text>
+
+      <!-- Feedback loop -->
+      <path d="M 1335,165 L 1335,290 L 140,290 L 140,170"
+            fill="none" stroke="#999" stroke-width="1.8" stroke-dasharray="8,4"
+            marker-end="url(#arrowFeedback)"/>
+      <rect x="660" y="276" width="155" height="28" rx="14" fill="var(--color-surface)" stroke="var(--color-outline-variant)" stroke-width="1"/>
+      <text x="737" y="294" text-anchor="middle" fill="#888" font-family="system-ui,sans-serif" font-size="12">反馈循环 · 越用越活</text>
+
+      <!-- Layer labels -->
+      <text x="30" y="205" fill="var(--color-outline)" font-family="system-ui,sans-serif" font-size="10" text-anchor="start">INPUT</text>
+      <text x="345" y="205" fill="var(--color-outline)" font-family="system-ui,sans-serif" font-size="10" text-anchor="start">API</text>
+      <text x="635" y="205" fill="var(--color-outline)" font-family="system-ui,sans-serif" font-size="10" text-anchor="start">VAULT</text>
+      <text x="935" y="205" fill="var(--color-outline)" font-family="system-ui,sans-serif" font-size="10" text-anchor="start">SURFACE</text>
+      <text x="1225" y="205" fill="var(--color-outline)" font-family="system-ui,sans-serif" font-size="10" text-anchor="start">DECAY</text>
+    </svg>
