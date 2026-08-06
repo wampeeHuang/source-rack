@@ -109,26 +109,28 @@ const HTML = `<!DOCTYPE html>
 <link rel="stylesheet" href="/tokens/layout.css">
 <link rel="stylesheet" href="/app.css">
 </head>
-<body data-total-count="SOURCES_PLACEHOLDER_COUNT">
+<body data-total-count="SOURCES_PLACEHOLDER_COUNT" data-graph="GRAPH_DATA_PLACEHOLDER">
 
 <!-- ═══ Zone 1: Header ═══ -->
 <header class="header">
   <div class="header-brand">
-    <img class="logo-mark" src="/logo.svg" width="32" height="32" alt="Source Rack">
+    <img class="logo-mark" src="/logo.svg" width="32" height="32" alt="信息源管理">
     <div class="header-title">
-      <h1>Source Rack</h1>
-      <div class="header-subtitle">信息源管理</div>
-      <div class="header-tagline">策展即权力，分类即导航</div>
+      <h1>信息源管理</h1>
+      <div class="header-status" id="healthChecks">
+        <details>
+          <summary>
+            <span id="healthDot" class="health-dot loading"></span>
+            <span id="healthStatus" class="health-status">检查中…</span>
+          </summary>
+          <ul id="healthChecksList" class="health-checks-list"></ul>
+        </details>
+      </div>
     </div>
   </div>
-  <div class="header-health" id="healthChecks">
-    <details>
-      <summary>
-        <span id="healthDot" class="health-dot loading"></span>
-        <span id="healthStatus" class="health-status">检查中…</span>
-      </summary>
-      <ul id="healthChecksList" class="health-checks-list"></ul>
-    </details>
+  <div class="header-tools">
+    <button class="view-btn active" data-view="list" data-action="toggleView" data-value="list">列表</button>
+    <button class="view-btn" data-view="graph" data-action="toggleView" data-value="graph">图谱</button>
   </div>
 </header>
 
@@ -150,7 +152,7 @@ const HTML = `<!DOCTYPE html>
   </nav>
 
   <!-- ═══ Zone 3: Data Table ═══ -->
-  <div class="list">
+  <div class="list" id="listView">
     <div class="list-header">
       <div class="list-header-cell col-tier">档位</div>
       <div class="list-header-cell col-source">
@@ -163,6 +165,25 @@ const HTML = `<!DOCTYPE html>
       <div class="list-header-cell col-tags">标签</div>
     </div>
     <div id="listBody">SOURCES_PLACEHOLDER_ROWS</div>
+  </div>
+</div>
+
+<!-- ═══ Graph View ═══ -->
+<div class="graph-container" id="graphView" hidden>
+  <aside class="graph-panel" id="graphPanel">
+    <div class="graph-panel-header">
+      <h3 id="graphPanelTitle">标签节点</h3>
+      <button class="graph-panel-clear" data-action="graphPanelClear" title="清除选择">&#x2715;</button>
+    </div>
+    <div class="graph-panel-list" id="graphPanelList">
+      <div class="graph-panel-hint">点击图谱中的标签查看相关源</div>
+    </div>
+  </aside>
+  <div class="graph-resize-handle" id="graphResizeHandle"></div>
+  <div class="graph-svg-area">
+    <svg id="graphSvg" viewBox="0 0 800 600" preserveAspectRatio="xMinYMid meet">
+      <g id="graphWorld"></g>
+    </svg>
   </div>
 </div>
 
@@ -562,6 +583,35 @@ function appFactory() {
     });
     tierChipsHTML += '<span class="count-badge" id="countDisplay"></span>';
 
+    // ── Tag graph data ──
+    var tagFreq = {};
+    var tagCooccur = {};
+    sources.forEach(function(s) {
+      var tags = s.tags || [];
+      for (var ti = 0; ti < tags.length; ti++) {
+        var t = tags[ti];
+        tagFreq[t] = (tagFreq[t] || 0) + 1;
+        if (!tagCooccur[t]) tagCooccur[t] = {};
+        for (var tj = 0; tj < tags.length; tj++) {
+          if (ti !== tj) tagCooccur[t][tags[tj]] = (tagCooccur[t][tags[tj]] || 0) + 1;
+        }
+      }
+    });
+    var topTags = Object.keys(tagFreq).sort(function(a,b) { return tagFreq[b] - tagFreq[a]; }).slice(0, 60);
+    var nodeMap = {};
+    topTags.forEach(function(t, i) { nodeMap[t] = i; });
+    var graphEdges = [];
+    for (var i = 0; i < topTags.length; i++) {
+      for (var j = i + 1; j < topTags.length; j++) {
+        var w = (tagCooccur[topTags[i]] && tagCooccur[topTags[i]][topTags[j]]) || 0;
+        if (w >= 2) graphEdges.push({ source: i, target: j, weight: Math.min(w, 10) });
+      }
+    }
+    var graphData = JSON.stringify({
+      nodes: topTags.map(function(t) { return { id: t, count: tagFreq[t] }; }),
+      edges: graphEdges
+    });
+
     // Build type chips
     const types = {};
     sources.forEach(function(s) { if (s.source_type) types[s.source_type] = (types[s.source_type] || 0) + 1; });
@@ -661,6 +711,7 @@ function appFactory() {
     html = html.replace('TIER_CHIPS_ROW', tierChipsHTML);
     html = html.replace('DOMAIN_TOP_ROW', topChipsHTML);
     html = html.replace('DOMAIN_SUB_ROW', subChipsHTML);
+    html = html.replace('GRAPH_DATA_PLACEHOLDER', graphData.replace(/"/g, '&quot;'));
     html = html.replace('<span class="chip active" data-type="all" data-action="setType" data-value="all">全部</span>',
       typeChips);
 

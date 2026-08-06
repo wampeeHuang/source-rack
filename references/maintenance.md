@@ -17,3 +17,8 @@
 - `.tier-x` = X 档红色警示线，禁止重复定义
 - `.src-url` = 品牌主色，不能用灰色——灰色看起来像失效链接
 - `row.stale` = `opacity: 0.5`，stale 检测门限 > 90 天 + 无 `last_used`
+- **flex/grid 容器必须写 `[hidden]` 回退**：`display: flex` 覆盖浏览器默认 `[hidden] { display: none }`，必须加 `.container[hidden] { display: none !important }`。踩坑：图谱视图漏到列表模式
+
+## JS 规则
+
+- **高频渲染禁 innerHTML**：rAF 循环中用 `innerHTML` 重建 DOM 会吃掉 click 事件（mousedown 到 mouseup 之间元素已销毁）。用 `setAttribute` 更新属性，或在 mousedown 阶段捕获意图数据

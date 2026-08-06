@@ -37,6 +37,8 @@
   --chip-px: 10px;               /* 芯片水平内边距 */
   --chip-font: 12px;             /* 芯片字号 */
   --chip-radius: var(--radius-pill);  /* 芯片圆角（继承品牌） */
+  --radius-lg: 8px;                  /* 浮动面板圆角 */
+  --elevation-lg: 0 12px 40px rgba(0, 0, 0, 0.12);  /* 浮动面板阴影 */
 
   /* ── 数据表格 ── */
   --table-row-h: 36px;           /* 行高 */
