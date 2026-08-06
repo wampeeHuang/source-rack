@@ -46,7 +46,10 @@ function scanSources() {
     // Normalize legacy fields
     if (!fm.added && fm.created) fm.added = fm.created;
     if (!fm.last_used && fm.updated) fm.last_used = fm.updated;
-    return { file: f, ...fm };
+    // Extract body (content after frontmatter)
+    const bodyStart = raw.indexOf('---\n', 4);
+    const body = bodyStart > -1 ? raw.slice(bodyStart + 4).trim() : '';
+    return { file: f, body: body, ...fm };
   });
 }
 
@@ -169,6 +172,19 @@ async function main() {
   const boilerplateWhy = sources.filter(function(s) { return s.why && boilerplateRe.test(s.why); });
   if (boilerplateWhy.length === 0) { pass('why 字段: 无模板描述 (' + sources.length + ' 个源全部手写)'); ok++; }
   else { fail('why 字段: ' + boilerplateWhy.length + ' 个模板描述（禁止 "{域}·{子域} 类型" 格式）'); boilerplateWhy.forEach(function(s) { warn('  ' + s.file + ': ' + s.why); }); issues.push('boilerplate_why'); gateBreaks.push('boilerplate_why'); }
+
+  // 1.8 body Chrome 书签导入残留 — 禁止 body 含 "Chrome 书签导入"
+  total++;
+  const bodyChromeImport = sources.filter(function(s) { return s.body && /Chrome 书签导入/.test(s.body); });
+  if (bodyChromeImport.length === 0) { pass('body 字段: 无 Chrome 书签导入残留'); ok++; }
+  else { fail('body 字段: ' + bodyChromeImport.length + ' 个文件残留 "Chrome 书签导入"'); bodyChromeImport.slice(0,10).forEach(function(s) { warn('  ' + s.file); }); issues.push('body_chrome_import'); gateBreaks.push('body_chrome_import'); }
+
+  // 1.9 title Chrome 导入命名 — 禁止 "{Name}- {Folder}" 格式（英文名- 中文文件夹）
+  total++;
+  const titleChromePattern = /^[A-Za-z].*- +[一-鿿]/;
+  const titleChromeImport = sources.filter(function(s) { return s.title && titleChromePattern.test(s.title); });
+  if (titleChromeImport.length === 0) { pass('title 字段: 无 Chrome 导入命名残留'); ok++; }
+  else { warn('title 字段: ' + titleChromeImport.length + ' 个疑似 "{Name} - {Folder}" 格式（需人工确认）'); titleChromeImport.forEach(function(s) { info('  ' + s.file + ': ' + s.title); }); issues.push('title_chrome_import'); ok++; }
 
   // ═══════════════════════════════════════════
   // 第二层：架构闭环检查
